@@ -1,0 +1,3 @@
+class Plan {
+  int? id;
+}
