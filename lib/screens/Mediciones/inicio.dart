@@ -14,7 +14,7 @@ class _RegistroExplosivoPageState extends State<RegistroExplosivoPage> {
   List<Map<String, dynamic>> exploraciones = [];
   List<Map<String, dynamic>> exploracionesFiltradas = [];
   Map<String, Map<String, List<Map<String, dynamic>>>> datosEditables = {};
-Map<String, TextEditingController> controllers = {};
+  Map<String, TextEditingController> controllers = {};
 
   // Función para crear una copia editable de los datos
   Map<String, dynamic> _crearCopiaEditable(Map<String, dynamic> original) {
@@ -32,7 +32,7 @@ Map<String, TextEditingController> controllers = {};
   int _calcularSemanaISO(DateTime date) {
     final dayOfYear = _diaDelAnio(date);
     final woy = ((dayOfYear - date.weekday + 10) / 7).floor();
-    
+
     if (woy < 1) {
       return _calcularSemanaISO(DateTime(date.year - 1, 12, 31));
     } else if (woy > 52 && DateTime(date.year, 12, 31).weekday < 4) {
@@ -47,8 +47,18 @@ Map<String, TextEditingController> controllers = {};
   }
 
   final List<String> meses = [
-    'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
-    'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+    'Enero',
+    'Febrero',
+    'Marzo',
+    'Abril',
+    'Mayo',
+    'Junio',
+    'Julio',
+    'Agosto',
+    'Septiembre',
+    'Octubre',
+    'Noviembre',
+    'Diciembre'
   ];
 
   @override
@@ -59,13 +69,13 @@ Map<String, TextEditingController> controllers = {};
     semanaController.text = _calcularSemanaISO(now).toString();
     _cargarExploracionesPendientes();
   }
-  
+
   void _cargarExploracionesPendientes() async {
     try {
       print('Cargando exploraciones pendientes...');
       exploraciones = await DatabaseHelper().getExploraciones();
       print('Registros encontrados: ${exploraciones.length}');
-      
+
       // Aplicar filtro inicial
       _filtrarDatos();
     } catch (e) {
@@ -76,29 +86,29 @@ Map<String, TextEditingController> controllers = {};
   void _filtrarDatos() {
     final mesSeleccionado = mesController.text;
     final semanaSeleccionada = semanaController.text;
-    
+
     // Convertir mes a número (1-12)
     final mesNumero = meses.indexOf(mesSeleccionado) + 1;
-    
+
     // Filtrar por mes y semana
     exploracionesFiltradas = exploraciones.where((registro) {
       try {
         final fecha = DateTime.parse(registro['fecha']);
         final semanaRegistro = _calcularSemanaISO(fecha).toString();
-        
+
         return fecha.month == mesNumero && semanaRegistro == semanaSeleccionada;
       } catch (e) {
         print('Error al procesar fecha: ${registro['fecha']}');
         return false;
       }
     }).toList();
-    
+
     // Crear estructura de datos editables
     datosEditables = {};
     for (var registro in exploracionesFiltradas) {
       final tipo = registro['tipo_perforacion'] ?? 'Sin tipo';
       final labor = registro['labor'] ?? 'Sin labor';
-      
+
       if (!datosEditables.containsKey(tipo)) {
         datosEditables[tipo] = {};
       }
@@ -107,7 +117,7 @@ Map<String, TextEditingController> controllers = {};
       }
       datosEditables[tipo]![labor]!.add(_crearCopiaEditable(registro));
     }
-    
+
     setState(() {});
   }
 
@@ -122,7 +132,7 @@ Map<String, TextEditingController> controllers = {};
       final labor = laborEntry.key;
       final registros = laborEntry.value;
       final primerRegistro = registros.first;
-      
+
       return {
         'labor': labor,
         'cant_regis': registros.length,
@@ -151,7 +161,7 @@ Map<String, TextEditingController> controllers = {};
           duration: Duration(seconds: 2),
         ),
       );
-      
+
       // Actualizar la lista de exploraciones para reflejar los cambios
       _cargarExploracionesPendientes();
     } else {
@@ -169,33 +179,35 @@ Map<String, TextEditingController> controllers = {};
     _filtrarDatos();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('Filtrando datos para ${mesController.text}, semana ${semanaController.text}'),
+        content: Text(
+            'Filtrando datos para ${mesController.text}, semana ${semanaController.text}'),
         duration: Duration(seconds: 2),
       ),
     );
   }
 
-void actualizarValor(String tipoPerforacion, String labor, int index, String campo, String nuevoValor) {
-  setState(() {
-    // Convertimos a double solo si hay valor, sino null
-    final valor = nuevoValor.isEmpty ? null : double.tryParse(nuevoValor);
-    
-    switch (campo) {
-      case "kg":
-        datosEditables[tipoPerforacion]![labor]![index]["kg"] = valor;
-        break;
-      case "avance":
-        datosEditables[tipoPerforacion]![labor]![index]["avance"] = valor;
-        break;
-      case "ancho":
-        datosEditables[tipoPerforacion]![labor]![index]["ancho"] = valor;
-        break;
-      case "alto":
-        datosEditables[tipoPerforacion]![labor]![index]["alto"] = valor;
-        break;
-    }
-  });
-}
+  void actualizarValor(String tipoPerforacion, String labor, int index,
+      String campo, String nuevoValor) {
+    setState(() {
+      // Convertimos a double solo si hay valor, sino null
+      final valor = nuevoValor.isEmpty ? null : double.tryParse(nuevoValor);
+
+      switch (campo) {
+        case "kg":
+          datosEditables[tipoPerforacion]![labor]![index]["kg"] = valor;
+          break;
+        case "avance":
+          datosEditables[tipoPerforacion]![labor]![index]["avance"] = valor;
+          break;
+        case "ancho":
+          datosEditables[tipoPerforacion]![labor]![index]["ancho"] = valor;
+          break;
+        case "alto":
+          datosEditables[tipoPerforacion]![labor]![index]["alto"] = valor;
+          break;
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -221,12 +233,12 @@ void actualizarValor(String tipoPerforacion, String labor, int index, String cam
           children: [
             // Filtros
             Row(
-              mainAxisAlignment: MainAxisAlignment.start,
               children: [
-                SizedBox(
-                  width: 200,
+                Flexible(
+                  flex: 3,
                   child: DropdownButtonFormField<String>(
-                    value: mesController.text,
+                    value:
+                        mesController.text.isEmpty ? null : mesController.text,
                     decoration: InputDecoration(
                       labelText: 'Mes',
                       border: OutlineInputBorder(),
@@ -245,9 +257,9 @@ void actualizarValor(String tipoPerforacion, String labor, int index, String cam
                     },
                   ),
                 ),
-                SizedBox(width: 10),
-                SizedBox(
-                  width: 100,
+                SizedBox(width: 8),
+                Flexible(
+                  flex: 1,
                   child: TextField(
                     controller: semanaController,
                     keyboardType: TextInputType.number,
@@ -262,7 +274,7 @@ void actualizarValor(String tipoPerforacion, String labor, int index, String cam
                     ),
                   ),
                 ),
-                SizedBox(width: 10),
+                SizedBox(width: 8),
                 ElevatedButton.icon(
                   icon: Icon(Icons.search, size: 20),
                   label: Text('Buscar'),
@@ -273,6 +285,7 @@ void actualizarValor(String tipoPerforacion, String labor, int index, String cam
                 ),
               ],
             ),
+
             SizedBox(height: 20),
 
             // Tablas dinámicas por tipo de perforación
@@ -281,7 +294,7 @@ void actualizarValor(String tipoPerforacion, String labor, int index, String cam
                 children: datosEditables.entries.map((tipoEntry) {
                   final tipoPerforacion = tipoEntry.key;
                   final labores = tipoEntry.value;
-                  
+
                   return Card(
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(15.0),
@@ -319,26 +332,50 @@ void actualizarValor(String tipoPerforacion, String labor, int index, String cam
                                     TableRow(
                                       decoration: BoxDecoration(
                                         color: Colors.grey[300],
-                                        borderRadius: BorderRadius.vertical(top: Radius.circular(8)),
+                                        borderRadius: BorderRadius.vertical(
+                                            top: Radius.circular(8)),
                                       ),
                                       children: [
-                                        tableCellBold(tipoPerforacion.toUpperCase()),
-                                        tableCellBold('CANTIDAD'),
-                                        tableCellBold('KG EXPLOSIVO'),
-                                        tableCellBold('AVANCE'),
-                                        tableCellBold('ANCHO'),
-                                        tableCellBold('ALTO'),
+                                        tableCellBold(context,
+                                            tipoPerforacion.toUpperCase()),
+                                        tableCellBold(context, 'Cantidad'),
+                                        tableCellBold(context, 'Kg explosivo'),
+                                        tableCellBold(context, 'Avance'),
+                                        tableCellBold(context, 'Ancho'),
+                                        tableCellBold(context, 'Alto'),
                                       ],
                                     ),
+
                                     // Filas agrupadas por labor
                                     for (var laborEntry in labores.entries)
                                       TableRow(children: [
                                         tableCell(laborEntry.key),
-                                        tableCell(laborEntry.value.length.toString()),
-                                        tableCellEditable(tipoPerforacion, laborEntry.key, 0, 'kg', laborEntry.value[0]['kg']),
-                                        tableCellEditable(tipoPerforacion, laborEntry.key, 0, 'avance', laborEntry.value[0]['avance']),
-                                        tableCellEditable(tipoPerforacion, laborEntry.key, 0, 'ancho', laborEntry.value[0]['ancho']),
-                                        tableCellEditable(tipoPerforacion, laborEntry.key, 0, 'alto', laborEntry.value[0]['alto']),
+                                        tableCell(
+                                            laborEntry.value.length.toString()),
+                                        tableCellEditable(
+                                            tipoPerforacion,
+                                            laborEntry.key,
+                                            0,
+                                            'kg',
+                                            laborEntry.value[0]['kg']),
+                                        tableCellEditable(
+                                            tipoPerforacion,
+                                            laborEntry.key,
+                                            0,
+                                            'avance',
+                                            laborEntry.value[0]['avance']),
+                                        tableCellEditable(
+                                            tipoPerforacion,
+                                            laborEntry.key,
+                                            0,
+                                            'ancho',
+                                            laborEntry.value[0]['ancho']),
+                                        tableCellEditable(
+                                            tipoPerforacion,
+                                            laborEntry.key,
+                                            0,
+                                            'alto',
+                                            laborEntry.value[0]['alto']),
                                       ]),
                                   ],
                                 ),
@@ -346,14 +383,17 @@ void actualizarValor(String tipoPerforacion, String labor, int index, String cam
                               SizedBox(height: 8),
                               // Botones para esta tabla específica
                               Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 8.0),
                                 child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceEvenly,
                                   children: [
                                     ElevatedButton.icon(
                                       style: ElevatedButton.styleFrom(
                                         backgroundColor: Colors.red,
-                                        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                        padding: EdgeInsets.symmetric(
+                                            horizontal: 16, vertical: 12),
                                       ),
                                       icon: Icon(Icons.delete, size: 18),
                                       onPressed: borrarCampos,
@@ -363,10 +403,12 @@ void actualizarValor(String tipoPerforacion, String labor, int index, String cam
                                     ElevatedButton.icon(
                                       style: ElevatedButton.styleFrom(
                                         backgroundColor: Colors.green,
-                                        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                        padding: EdgeInsets.symmetric(
+                                            horizontal: 16, vertical: 12),
                                       ),
                                       icon: Icon(Icons.send, size: 18),
-                                      onPressed: () => _enviarDatosPorTipo(tipoPerforacion),
+                                      onPressed: () =>
+                                          _enviarDatosPorTipo(tipoPerforacion),
                                       label: Text('ENVIAR'),
                                     ),
                                   ],
@@ -388,42 +430,41 @@ void actualizarValor(String tipoPerforacion, String labor, int index, String cam
     );
   }
 
-Widget tableCellEditable(String tipoPerforacion, String labor, int index, String campo, dynamic valor) {
-  final key = '$tipoPerforacion-$labor-$index-$campo';
+  Widget tableCellEditable(String tipoPerforacion, String labor, int index,
+      String campo, dynamic valor) {
+    final key = '$tipoPerforacion-$labor-$index-$campo';
 
-  if (!controllers.containsKey(key)) {
-    controllers[key] = TextEditingController(text: valor?.toString() ?? '');
-  }
+    if (!controllers.containsKey(key)) {
+      controllers[key] = TextEditingController(text: valor?.toString() ?? '');
+    }
 
-  final controller = controllers[key]!;
+    final controller = controllers[key]!;
 
-  return Padding(
-    padding: const EdgeInsets.all(8.0),
-    child: TextField(
-      controller: controller,
-      onChanged: (newValue) {
-        if (newValue.isEmpty || double.tryParse(newValue) != null) {
-          actualizarValor(tipoPerforacion, labor, index, campo, newValue);
-        } else {
-          controller.text = valor?.toString() ?? '';
-          controller.selection = TextSelection.fromPosition(
-            TextPosition(offset: controller.text.length)
-          );
-        }
-      },
-      keyboardType: TextInputType.numberWithOptions(decimal: true),
-      decoration: InputDecoration(
-        border: OutlineInputBorder(),
-        isDense: true,
-        contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+    return Padding(
+      padding: const EdgeInsets.all(8.0),
+      child: TextField(
+        controller: controller,
+        onChanged: (newValue) {
+          if (newValue.isEmpty || double.tryParse(newValue) != null) {
+            actualizarValor(tipoPerforacion, labor, index, campo, newValue);
+          } else {
+            controller.text = valor?.toString() ?? '';
+            controller.selection = TextSelection.fromPosition(
+                TextPosition(offset: controller.text.length));
+          }
+        },
+        keyboardType: TextInputType.numberWithOptions(decimal: true),
+        decoration: InputDecoration(
+          border: OutlineInputBorder(),
+          isDense: true,
+          contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+        ),
+        inputFormatters: [
+          FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}')),
+        ],
       ),
-      inputFormatters: [
-        FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}')),
-      ],
-    ),
-  );
-}
-
+    );
+  }
 
   Widget tableCell(String text) {
     return Padding(
@@ -432,11 +473,21 @@ Widget tableCellEditable(String tipoPerforacion, String labor, int index, String
     );
   }
 
-  Widget tableCellBold(String text) {
+  Widget tableCellBold(BuildContext context, String text) {
+    double screenWidth = MediaQuery.of(context).size.width;
+    double fontSize =
+        screenWidth < 600 ? 10 : 16; // Ajusta el umbral y tamaños a gusto
+
     return Padding(
       padding: const EdgeInsets.all(8.0),
       child: Center(
-        child: Text(text, style: TextStyle(fontWeight: FontWeight.bold)),
+        child: Text(
+          text,
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: fontSize,
+          ),
+        ),
       ),
     );
   }

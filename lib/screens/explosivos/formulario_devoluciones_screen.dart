@@ -40,6 +40,9 @@ class _FormularioDevolucionesScreenState
   // Controladores adicionales
   List<ExplosivosUni> milisegundosList = [];
   List<ExplosivosUni> medioSegundosList = [];
+
+    final TextEditingController _observacionesController = TextEditingController();
+
   @override
   void initState() {
     super.initState();
@@ -119,6 +122,11 @@ class _FormularioDevolucionesScreenState
       var detail = detalles.first; // Toma el primer registro
 
       _DevolucionesId = detail['id']; // Guardar el ID del Devoluciones
+
+      final obs = detail['observaciones'];
+    if (obs != null) {
+      _observacionesController.text = obs.toString();
+    }
 
       setState(() {});
 
@@ -657,6 +665,30 @@ class _FormularioDevolucionesScreenState
     }
   }
 
+  Future<void> _actualizarTiempos() async {
+  if (_DevolucionesId == null) {
+    throw Exception('No se encontró un ID de despacho');
+  }
+
+  final selectedMs = _getSelectedMsOption();
+  final selectedLp = _getSelectedLpOption();
+
+  double? ms = selectedMs != null ? double.tryParse(selectedMs) : null;
+  double? lp = selectedLp != null ? double.tryParse(selectedLp) : null;
+
+  if (ms == null && lp == null) return;
+
+  int filasActualizadas = await DatabaseHelper().actualizarTiemposDevoluciones(
+    _DevolucionesId!,
+    ms,
+    lp,
+  );
+
+  if (filasActualizadas > 0) {
+    print('Tiempos actualizados correctamente: MS=$ms, LP=$lp');
+  }
+}
+
   void _mostrarDialogoConfirmacion(BuildContext context) {
     showDialog(
       context: context,
@@ -796,52 +828,45 @@ Future<bool> _guardarFormulario() async {
   }
 
   /// Método para construir la tabla. Se generan filas de 'start' a 'end'.
-  Widget _buildTable(int start, int end) {
-    return Expanded(
-      child: Table(
-        border: TableBorder.all(color: Colors.grey),
-        columnWidths: const {
-          0: FlexColumnWidth(0.3), // N° (más pequeño)
-          1: FlexColumnWidth(2.0), // Milisegundo (MS)
-          2: FlexColumnWidth(2.0), // Medio Segundo (LP)
-        },
+Widget _buildTable(int start, int end) {
+  return Table(
+    border: TableBorder.all(color: Colors.grey),
+    columnWidths: const {
+      0: FlexColumnWidth(0.3), // N°
+      1: FlexColumnWidth(2.0), // MS
+      2: FlexColumnWidth(2.0), // LP
+    },
+    children: [
+      TableRow(
+        decoration: const BoxDecoration(color: Colors.black12),
         children: [
-          // Encabezado de la tabla con botones en los títulos
-          TableRow(
-            decoration: const BoxDecoration(color: Colors.black12),
-            children: [
-              _buildHeaderCell('N°'),
-              _buildHeaderWithButtons(
-                  'Milisegundo (MS)',
-                  milisegundosList.map((e) => e.dato.toString()).toList(),
-                  _visibleMsOptions,
-                  _toggleMsOption),
-              _buildHeaderWithButtons(
-                  'Medio Segundo (LP)',
-                  medioSegundosList.map((e) => e.dato.toString()).toList(),
-                  _visibleLpOptions,
-                  _toggleLpOption),
-            ],
+          _buildHeaderCell('N°'),
+          _buildHeaderWithButtons(
+            'Milisegundo (MS)',
+            milisegundosList.map((e) => e.dato.toString()).toList(),
+            _visibleMsOptions,
+            _toggleMsOption,
           ),
-          // Generar dinámicamente filas numeradas
-          for (int i = start; i <= end; i++)
-            TableRow(
-              children: [
-                _buildNumberCell(i),
-                // Para la columna MS se usan 3 inputs
-                _buildInputRow([
-                  _controllers['msCant1_$i']!,
-                ]),
-                // Para la columna LP se usan 2 inputs
-                _buildInputRow([
-                  _controllers['lpCant1_$i']!,
-                ]),
-              ],
-            ),
+          _buildHeaderWithButtons(
+            'Medio Segundo (LP)',
+            medioSegundosList.map((e) => e.dato.toString()).toList(),
+            _visibleLpOptions,
+            _toggleLpOption,
+          ),
         ],
       ),
-    );
-  }
+      for (int i = start; i <= end; i++)
+        TableRow(
+          children: [
+            _buildNumberCell(i),
+            _buildInputRow([_controllers['msCant1_$i']!]),
+            _buildInputRow([_controllers['lpCant1_$i']!]),
+          ],
+        ),
+    ],
+  );
+}
+
 
   Widget _buildHeaderCell(String title) {
     return Padding(
@@ -852,6 +877,14 @@ Future<bool> _guardarFormulario() async {
 
   Set<String> _visibleMsOptions = {};
   Set<String> _visibleLpOptions = {};
+
+  String? _getSelectedMsOption() {
+    return _visibleMsOptions.length == 1 ? _visibleMsOptions.first : null;
+  }
+
+  String? _getSelectedLpOption() {
+    return _visibleLpOptions.length == 1 ? _visibleLpOptions.first : null;
+  }
 
   void _toggleMsOption(String option) {
     setState(() {
@@ -903,6 +936,20 @@ Future<bool> _guardarFormulario() async {
       ),
     );
   }
+
+  Future<void> _actualizarObservaciones() async {
+  if (_DevolucionesId == null) {
+    throw Exception('No se encontró un ID de despacho');
+  }
+
+  final observaciones = _observacionesController.text.trim();
+
+  if (observaciones.isEmpty) return; // No actualiza si está vacío
+
+  await DatabaseHelper().actualizarDetalleDevolucion(_DevolucionesId!, observaciones);
+
+  print("Observaciones actualizadas correctamente.");
+}
 
   @override
   Widget build(BuildContext context) {
@@ -958,17 +1005,35 @@ Future<bool> _guardarFormulario() async {
 ),
               const SizedBox(height: 20),
               // Mostrar las 20 filas divididas en dos tablas
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildTable(1, 10), // Primera tabla (filas 1-10)
-                  const SizedBox(width: 16), // Espacio entre las tablas
-                  _buildTable(11, 20), // Segunda tabla (filas 11-20)
-                ],
-              ),
+              LayoutBuilder(
+  builder: (context, constraints) {
+    // Si el ancho disponible es menor a 600, asumimos que es un teléfono
+    bool isSmallScreen = constraints.maxWidth < 600;
+
+    return isSmallScreen
+        ? Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildTable(1, 10),
+              const SizedBox(height: 16),
+              _buildTable(11, 20),
+            ],
+          )
+        : Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(child: _buildTable(1, 10)),
+              const SizedBox(width: 16),
+              Expanded(child: _buildTable(11, 20)),
+            ],
+          );
+  },
+),
+
               const SizedBox(height: 20),
               // Observaciones
               TextFormField(
+                controller: _observacionesController,
                 maxLines: 3,
                 decoration: const InputDecoration(
                   labelText: 'Observaciones',
@@ -990,8 +1055,10 @@ Future<bool> _guardarFormulario() async {
                                 await Future.wait([
                                   _actualizarTodosLosDetalles(),
                                   _guardarFormulario(),
+                                  _actualizarObservaciones(),
                                   // _actualizarDevoluciones(),
                                   _actualizarEstadoEnProceso(),
+                                  _actualizarTiempos(),
                                 ]);
 
                                 ScaffoldMessenger.of(context).showSnackBar(

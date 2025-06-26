@@ -20,13 +20,16 @@ class _FormularioDespachoScreenState extends State<FormularioDespachoScreen> {
   final _formKey = GlobalKey<FormState>();
 
   List<Map<String, dynamic>> _detallesDespacho = [];
-   Map<String, TextEditingController> _controllers = {};
+  Map<String, TextEditingController> _controllers = {};
   int? _despachoId;
-List<Map<String, String>> _accesorios = [];
-List<Map<String, String>> _explosivos = [];
+  List<Map<String, String>> _accesorios = [];
+  List<Map<String, String>> _explosivos = [];
 
-List<ExplosivosUni> milisegundosList = [];
-List<ExplosivosUni> medioSegundosList = [];
+  List<ExplosivosUni> milisegundosList = [];
+  List<ExplosivosUni> medioSegundosList = [];
+
+  final TextEditingController _observacionesController =
+      TextEditingController();
 
   @override
   void initState() {
@@ -40,45 +43,44 @@ List<ExplosivosUni> medioSegundosList = [];
     _cargarDatos();
   }
 
-    void _cargarDatos() async {
-  List<Map<String, String>> accesorios = await DatabaseHelper().getAccesoriosunidad();
-  List<Map<String, String>> explosivos = await DatabaseHelper().getExplosivosunidad();
+  void _cargarDatos() async {
+    List<Map<String, String>> accesorios =
+        await DatabaseHelper().getAccesoriosunidad();
+    List<Map<String, String>> explosivos =
+        await DatabaseHelper().getExplosivosunidad();
 
-  setState(() {
-    _accesorios = accesorios;
-    _explosivos = explosivos;
-  });
-}
-
-
-void fetchExplosivosuni() async {
-  List<ExplosivosUni> explosivos = await DatabaseHelper().getExplosivosUni();
-
-  // Limpiamos las listas antes de agregar nuevos datos
-  milisegundosList.clear();
-  medioSegundosList.clear();
-
-  for (var explosivo in explosivos) {
-    if (explosivo.tipo == "Milisegundo") {
-      milisegundosList.add(explosivo);
-    } else if (explosivo.tipo == "Medio Segundo") {
-      medioSegundosList.add(explosivo);
-    }
+    setState(() {
+      _accesorios = accesorios;
+      _explosivos = explosivos;
+    });
   }
 
-      // Extraemos los valores únicos de cada lista
+  void fetchExplosivosuni() async {
+    List<ExplosivosUni> explosivos = await DatabaseHelper().getExplosivosUni();
+
+    // Limpiamos las listas antes de agregar nuevos datos
+    milisegundosList.clear();
+    medioSegundosList.clear();
+
+    for (var explosivo in explosivos) {
+      if (explosivo.tipo == "Milisegundo") {
+        milisegundosList.add(explosivo);
+      } else if (explosivo.tipo == "Medio Segundo") {
+        medioSegundosList.add(explosivo);
+      }
+    }
+
+    // Extraemos los valores únicos de cada lista
     _visibleMsOptions = milisegundosList.map((e) => e.dato.toString()).toSet();
     _visibleLpOptions = medioSegundosList.map((e) => e.dato.toString()).toSet();
 
-
-  setState(() {}); // Notificamos a la UI para que se actualice
-}
+    setState(() {}); // Notificamos a la UI para que se actualice
+  }
 
 // Función para formatear el número
-String formatNumber(double value) {
-  return value % 1 == 0 ? value.toInt().toString() : value.toString();
-}
-
+  String formatNumber(double value) {
+    return value % 1 == 0 ? value.toInt().toString() : value.toString();
+  }
 
   void _loadDetallesDespacho() async {
     List<Map<String, dynamic>> detalles = await DatabaseHelper()
@@ -89,9 +91,14 @@ String formatNumber(double value) {
 
       _despachoId = detail['id']; // Guardar el ID del despacho
 
+      // Cargar el valor de observaciones si no es null
+      final obs = detail['observaciones'];
+      if (obs != null) {
+        _observacionesController.text = obs.toString();
+      }
+
       setState(() {});
 
-      // Llamar a _loadDetallesDespachoExplo() después de obtener el ID
       if (_despachoId != null) {
         _loadDetallesDespachoExplo(_despachoId!);
         _loadDetallesDespachoMateriales(_despachoId!);
@@ -99,9 +106,9 @@ String formatNumber(double value) {
     }
   }
 
-void _loadDetallesDespachoMateriales(int despachoId) async {
+  void _loadDetallesDespachoMateriales(int despachoId) async {
     List<Map<String, dynamic>> detalles = await DatabaseHelper()
-        .getDetalleDespachoByDesapachoExposivosyAccesorios(despachoId); 
+        .getDetalleDespachoByDesapachoExposivosyAccesorios(despachoId);
 
     setState(() {
       _detallesDespacho = detalles.where((d) => d['cantidad'] != null).toList();
@@ -138,8 +145,7 @@ void _loadDetallesDespachoMateriales(int despachoId) async {
       throw Exception('No hay un despacho para actualizar');
     }
 
-    Map<String, dynamic> updatedData = {
-    };
+    Map<String, dynamic> updatedData = {};
 
     int result =
         await DatabaseHelper().updateDespacho(_despachoId!, updatedData);
@@ -151,27 +157,28 @@ void _loadDetallesDespachoMateriales(int despachoId) async {
   }
 
   Future<void> _actualizarTodosLosDetalles() async {
-  try {
-    if (_detallesDespacho.isEmpty) return;
+    try {
+      if (_detallesDespacho.isEmpty) return;
 
-    await Future.wait(_detallesDespacho.map((detalle) {
-      int id = detalle['id']; // Obtener el ID del registro
-      String key = detalle['nombre_material'];
-      String cantidad = _controllers[key]?.text ?? ""; // Obtener la cantidad ingresada
+      await Future.wait(_detallesDespacho.map((detalle) {
+        int id = detalle['id']; // Obtener el ID del registro
+        String key = detalle['nombre_material'];
+        String cantidad =
+            _controllers[key]?.text ?? ""; // Obtener la cantidad ingresada
 
-      if (cantidad.isNotEmpty) {
-        return DatabaseHelper().updateDespachoDetalle(id, {'cantidad': cantidad});
-      } else {
-        return Future.value(); // No actualizar si el campo está vacío
-      }
-    }));
+        if (cantidad.isNotEmpty) {
+          return DatabaseHelper()
+              .updateDespachoDetalle(id, {'cantidad': cantidad});
+        } else {
+          return Future.value(); // No actualizar si el campo está vacío
+        }
+      }));
 
-    print("Todos los detalles del despacho fueron actualizados.");
-  } catch (e) {
-    print("Error al actualizar detalles: $e");
+      print("Todos los detalles del despacho fueron actualizados.");
+    } catch (e) {
+      print("Error al actualizar detalles: $e");
+    }
   }
-}
-
 
   Future<bool> _guardarFormulario() async {
     if (_despachoId == null) {
@@ -200,6 +207,45 @@ void _loadDetallesDespachoMateriales(int despachoId) async {
       throw Exception('No hay datos para guardar en el formulario');
     }
   }
+
+  Future<void> _actualizarObservaciones() async {
+    if (_despachoId == null) {
+      throw Exception('No se encontró un ID de despacho');
+    }
+
+    final observaciones = _observacionesController.text.trim();
+
+    if (observaciones.isEmpty) return; // No actualiza si está vacío
+
+    await DatabaseHelper()
+        .actualizarDetalleDespacho(_despachoId!, observaciones);
+
+    print("Observaciones actualizadas correctamente.");
+  }
+
+Future<void> _actualizarTiempos() async {
+  if (_despachoId == null) {
+    throw Exception('No se encontró un ID de despacho');
+  }
+
+  final selectedMs = _getSelectedMsOption();
+  final selectedLp = _getSelectedLpOption();
+
+  double? ms = selectedMs != null ? double.tryParse(selectedMs) : null;
+  double? lp = selectedLp != null ? double.tryParse(selectedLp) : null;
+
+  if (ms == null && lp == null) return;
+
+  int filasActualizadas = await DatabaseHelper().actualizarTiemposDespacho(
+    _despachoId!,
+    ms,
+    lp,
+  );
+
+  if (filasActualizadas > 0) {
+    print('Tiempos actualizados correctamente: MS=$ms, LP=$lp');
+  }
+}
 
   @override
   void dispose() {
@@ -247,51 +293,41 @@ void _loadDetallesDespachoMateriales(int despachoId) async {
 
   /// Método para construir la tabla. Se generan filas de 'start' a 'end'.
   Widget _buildTable(int start, int end) {
-    return Expanded(
-      child: Table(
-        border: TableBorder.all(color: Colors.grey),
-        columnWidths: const {
-          0: FlexColumnWidth(0.3), // N° (más pequeño)
-          1: FlexColumnWidth(2.0), // Milisegundo (MS)
-          2: FlexColumnWidth(2.0), // Medio Segundo (LP)
-        },
-        children: [
-          // Encabezado de la tabla con botones en los títulos
-          TableRow(
-            decoration: const BoxDecoration(color: Colors.black12),
-            children: [
-              _buildHeaderCell('N°'),
-               _buildHeaderWithButtons(
-              'Milisegundo (MS)', 
-              milisegundosList.map((e) => e.dato.toString()).toList(), 
-              _visibleMsOptions, 
-              _toggleMsOption
+    return Table(
+      border: TableBorder.all(color: Colors.grey),
+      columnWidths: const {
+        0: FlexColumnWidth(0.3), // N°
+        1: FlexColumnWidth(2.0), // MS
+        2: FlexColumnWidth(2.0), // LP
+      },
+      children: [
+        TableRow(
+          decoration: const BoxDecoration(color: Colors.black12),
+          children: [
+            _buildHeaderCell('N°'),
+            _buildHeaderWithButtons(
+              'Milisegundo (MS)',
+              milisegundosList.map((e) => e.dato.toString()).toList(),
+              _visibleMsOptions,
+              _toggleMsOption,
             ),
             _buildHeaderWithButtons(
-              'Medio Segundo (LP)', 
-              medioSegundosList.map((e) => e.dato.toString()).toList(), 
-              _visibleLpOptions, 
-              _toggleLpOption
+              'Medio Segundo (LP)',
+              medioSegundosList.map((e) => e.dato.toString()).toList(),
+              _visibleLpOptions,
+              _toggleLpOption,
             ),
+          ],
+        ),
+        for (int i = start; i <= end; i++)
+          TableRow(
+            children: [
+              _buildNumberCell(i),
+              _buildInputRow([_controllers['msCant1_$i']!]),
+              _buildInputRow([_controllers['lpCant1_$i']!]),
             ],
           ),
-          // Generar dinámicamente filas numeradas
-          for (int i = start; i <= end; i++)
-            TableRow(
-              children: [
-                _buildNumberCell(i),
-                // Para la columna MS se usan 3 inputs
-                _buildInputRow([
-                  _controllers['msCant1_$i']!,
-                ]),
-                // Para la columna LP se usan 2 inputs
-                _buildInputRow([
-                  _controllers['lpCant1_$i']!,
-                ]),
-              ],
-            ),
-        ],
-      ),
+      ],
     );
   }
 
@@ -302,29 +338,40 @@ void _loadDetallesDespachoMateriales(int despachoId) async {
     );
   }
 
-Set<String> _visibleMsOptions = {};
-Set<String> _visibleLpOptions = {};
+  Set<String> _visibleMsOptions = {};
+  Set<String> _visibleLpOptions = {};
 
-void _toggleMsOption(String option) {
-  setState(() {
-    if (_visibleMsOptions.length == 1 && _visibleMsOptions.contains(option)) {
-      _visibleMsOptions = milisegundosList.map((e) => e.dato.toString()).toSet(); // Restaurar todas
-    } else {
-      _visibleMsOptions = {option}; // Mostrar solo la seleccionada
-    }
-  });
-}
+  String? _getSelectedMsOption() {
+    return _visibleMsOptions.length == 1 ? _visibleMsOptions.first : null;
+  }
+
+  String? _getSelectedLpOption() {
+    return _visibleLpOptions.length == 1 ? _visibleLpOptions.first : null;
+  }
+
+  void _toggleMsOption(String option) {
+    setState(() {
+      if (_visibleMsOptions.length == 1 && _visibleMsOptions.contains(option)) {
+        _visibleMsOptions = milisegundosList
+            .map((e) => e.dato.toString())
+            .toSet(); // Restaurar todas
+      } else {
+        _visibleMsOptions = {option}; // Mostrar solo la seleccionada
+      }
+    });
+  }
 
 // Método para alternar opciones visibles de Medio Segundo
-void _toggleLpOption(String option) {
-  setState(() {
-    if (_visibleLpOptions.length == 1 && _visibleLpOptions.contains(option)) {
-      _visibleLpOptions = medioSegundosList.map((e) => e.dato.toString()).toSet();
-    } else {
-      _visibleLpOptions = {option};
-    }
-  });
-}
+  void _toggleLpOption(String option) {
+    setState(() {
+      if (_visibleLpOptions.length == 1 && _visibleLpOptions.contains(option)) {
+        _visibleLpOptions =
+            medioSegundosList.map((e) => e.dato.toString()).toSet();
+      } else {
+        _visibleLpOptions = {option};
+      }
+    });
+  }
 
   Widget _buildHeaderWithButtons(String title, List<String> options,
       Set<String> visibleOptions, Function(String) onTap) {
@@ -366,72 +413,91 @@ void _toggleLpOption(String option) {
               const SizedBox(height: 10),
               // Inputs organizados en filas de 4 en 4 sin métodos adicionales
               Column(
-  children: List.generate(
-    (_detallesDespacho.length / 2).ceil(), // Número de filas necesarias
-    (index) {
-      int startIndex = index * 2;
-      int endIndex = startIndex + 2;
-      List detallesFila = _detallesDespacho.sublist(
-        startIndex, 
-        endIndex > _detallesDespacho.length ? _detallesDespacho.length : endIndex
-      );
+                children: List.generate(
+                  (_detallesDespacho.length / 2)
+                      .ceil(), // Número de filas necesarias
+                  (index) {
+                    int startIndex = index * 2;
+                    int endIndex = startIndex + 2;
+                    List detallesFila = _detallesDespacho.sublist(
+                        startIndex,
+                        endIndex > _detallesDespacho.length
+                            ? _detallesDespacho.length
+                            : endIndex);
 
-      return Row(
-        children: detallesFila.map((detalle) {
-          String key = detalle['nombre_material'];
+                    return Row(
+                      children: detallesFila.map((detalle) {
+                        String key = detalle['nombre_material'];
 
-          // Buscar unidad de medida en accesorios y explosivos
-          String unidadMedida = '';
-          var accesorio = _accesorios.firstWhere(
-            (a) => a['tipo'] == key, 
-            orElse: () => {}
-          );
-          var explosivo = _explosivos.firstWhere(
-            (e) => e['tipo'] == key, 
-            orElse: () => {}
-          );
+                        // Buscar unidad de medida en accesorios y explosivos
+                        String unidadMedida = '';
+                        var accesorio = _accesorios.firstWhere(
+                            (a) => a['tipo'] == key,
+                            orElse: () => {});
+                        var explosivo = _explosivos.firstWhere(
+                            (e) => e['tipo'] == key,
+                            orElse: () => {});
 
-          // Asignar unidad si se encuentra en accesorios o explosivos
-          if (accesorio.isNotEmpty) {
-            unidadMedida = accesorio['unidad_medida']!;
-          } else if (explosivo.isNotEmpty) {
-            unidadMedida = explosivo['unidad_medida']!;
-          }
+                        // Asignar unidad si se encuentra en accesorios o explosivos
+                        if (accesorio.isNotEmpty) {
+                          unidadMedida = accesorio['unidad_medida']!;
+                        } else if (explosivo.isNotEmpty) {
+                          unidadMedida = explosivo['unidad_medida']!;
+                        }
 
-          return Expanded(
-            child: Padding(
-              padding: const EdgeInsets.all(5.0),
-              child: TextFormField(
-                controller: _controllers[key],
-                decoration: InputDecoration(
-                  labelText: '${detalle['nombre_material']} (${unidadMedida.isNotEmpty ? unidadMedida : ''})',
-                  border: const OutlineInputBorder(),
+                        return Expanded(
+                          child: Padding(
+                            padding: const EdgeInsets.all(5.0),
+                            child: TextFormField(
+                              controller: _controllers[key],
+                              decoration: InputDecoration(
+                                labelText:
+                                    '${detalle['nombre_material']} (${unidadMedida.isNotEmpty ? unidadMedida : ''})',
+                                border: const OutlineInputBorder(),
+                              ),
+                              keyboardType: TextInputType.number,
+                              inputFormatters: [
+                                FilteringTextInputFormatter.digitsOnly
+                              ],
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    );
+                  },
                 ),
-                keyboardType: TextInputType.number,
-                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
               ),
-            ),
-          );
-        }).toList(),
-      );
-    },
-  ),
-),
-
 
               const SizedBox(height: 20),
               // Mostrar las 20 filas divididas en dos tablas
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildTable(1, 10), // Primera tabla (filas 1-10)
-                  const SizedBox(width: 16), // Espacio entre las tablas
-                  _buildTable(11, 20), // Segunda tabla (filas 11-20)
-                ],
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  // Si el ancho disponible es menor a 600, asumimos que es un teléfono
+                  bool isSmallScreen = constraints.maxWidth < 600;
+
+                  return isSmallScreen
+                      ? Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _buildTable(1, 10),
+                            const SizedBox(height: 16),
+                            _buildTable(11, 20),
+                          ],
+                        )
+                      : Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(child: _buildTable(1, 10)),
+                            const SizedBox(width: 16),
+                            Expanded(child: _buildTable(11, 20)),
+                          ],
+                        );
+                },
               ),
+
               const SizedBox(height: 20),
-              // Observaciones
               TextFormField(
+                controller: _observacionesController,
                 maxLines: 3,
                 decoration: const InputDecoration(
                   labelText: 'Observaciones',
@@ -447,7 +513,10 @@ void _toggleLpOption(String option) {
                       await Future.wait([
                         _actualizarTodosLosDetalles(),
                         _guardarFormulario(),
+                        _actualizarObservaciones(),
+                        _actualizarTiempos(),
                         // _actualizarDespacho(),
+                        
                       ]);
 
                       ScaffoldMessenger.of(context).showSnackBar(

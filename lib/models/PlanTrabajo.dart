@@ -5,6 +5,9 @@ class PlanTrabajo {
   final String ala;
   final String estructuraVeta;
   final String nivel;
+  final String? empresa; // Hacerlo nullable
+ final double? ancho; // Cambiado a double
+  final double? alto; 
 
   PlanTrabajo({
     required this.zona,
@@ -13,6 +16,9 @@ class PlanTrabajo {
     required this.ala,
     required this.estructuraVeta,
     required this.nivel,
+    this.empresa,
+    this.alto, 
+    this.ancho,
   });
 
   // Método para convertir desde un mapa (por ejemplo, si se obtiene de JSON)

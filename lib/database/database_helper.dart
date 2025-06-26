@@ -24,7 +24,7 @@ class DatabaseHelper {
   static Database? _database;
   static String? _currentUserDni;
   static bool _isInitialized = false;
-  static const int _currentDbVersion = 7; 
+  static const int _currentDbVersion = 10; 
 
   DatabaseHelper._internal() {
     // Inicialización única para evitar múltiples llamadas
@@ -349,7 +349,9 @@ class DatabaseHelper {
     cerrado INTEGER DEFAULT 0,
     envio INTEGER DEFAULT 0,
     semanaDefault TEXT,
-    semanaSelect TEXT
+    semanaSelect TEXT,
+    empresa TEXT,
+    seccion TEXT
   )
 ''');
 
@@ -359,6 +361,7 @@ class DatabaseHelper {
     datos_trabajo_id INTEGER,
     mili_segundo REAL,
     medio_segundo REAL,
+    observaciones TEXT,
     FOREIGN KEY(datos_trabajo_id) REFERENCES Datos_trabajo_exploraciones(id) ON DELETE CASCADE
   );
 ''');
@@ -379,6 +382,7 @@ class DatabaseHelper {
     datos_trabajo_id INTEGER,
     mili_segundo REAL,
     medio_segundo REAL,
+    observaciones TEXT,
     FOREIGN KEY(datos_trabajo_id) REFERENCES Datos_trabajo_exploraciones(id) ON DELETE CASCADE
   );
 ''');
@@ -660,6 +664,23 @@ Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
    if (oldVersion < 7) {
     if (!await _columnaExiste(db, 'Usuario', 'operaciones_autorizadas')) {
       await db.execute('ALTER TABLE Usuario ADD COLUMN operaciones_autorizadas TEXT');
+    }
+  }
+  if (oldVersion < 8) {
+    if (!await _columnaExiste(db, 'Devoluciones', 'observaciones')) {
+      await db.execute('ALTER TABLE Devoluciones ADD COLUMN observaciones TEXT');
+    }if (!await _columnaExiste(db, 'Despacho', 'observaciones')) {
+      await db.execute('ALTER TABLE Despacho ADD COLUMN observaciones TEXT');
+    }
+  }
+  if (oldVersion < 9) {
+    if (!await _columnaExiste(db, 'Datos_trabajo_exploraciones', 'empresa')) {
+      await db.execute('ALTER TABLE Datos_trabajo_exploraciones ADD COLUMN empresa TEXT');
+    }
+  }
+  if (oldVersion < 10) {
+    if (!await _columnaExiste(db, 'Datos_trabajo_exploraciones', 'seccion')) {
+      await db.execute('ALTER TABLE Datos_trabajo_exploraciones ADD COLUMN seccion TEXT');
     }
   }
 }
@@ -1566,6 +1587,60 @@ Future<List<Map<String, dynamic>>> getExploracionesPendientes() async {
     );
   }
 
+Future<int> actualizarDetalleDespacho(int idDespacho, String detalle) async {
+  final db = await database;
+  return await db.update(
+    'Despacho',
+    {'observaciones': detalle},
+    where: 'id = ?',
+    whereArgs: [idDespacho],
+  );
+}
+
+Future<int> actualizarDetalleDevolucion(int idDevolucion, String detalle) async {
+  final db = await database;
+  return await db.update(
+    'Devoluciones',
+    {'observaciones': detalle},
+    where: 'id = ?',
+    whereArgs: [idDevolucion],
+  );
+}
+
+Future<int> actualizarTiemposDespacho(int idDespacho, double? milisegundo, double? medioSegundo) async {
+  final db = await database;
+
+  Map<String, dynamic> valores = {};
+  if (milisegundo != null) valores['mili_segundo'] = milisegundo;
+  if (medioSegundo != null) valores['medio_segundo'] = medioSegundo;
+
+  if (valores.isEmpty) return 0; // Nada que actualizar
+
+  return await db.update(
+    'Despacho',
+    valores,
+    where: 'id = ?',
+    whereArgs: [idDespacho],
+  );
+}
+
+Future<int> actualizarTiemposDevoluciones(int _DevolucionesId, double? milisegundo, double? medioSegundo) async {
+  final db = await database;
+
+  Map<String, dynamic> valores = {};
+  if (milisegundo != null) valores['mili_segundo'] = milisegundo;
+  if (medioSegundo != null) valores['medio_segundo'] = medioSegundo;
+
+  if (valores.isEmpty) return 0; // Nada que actualizar
+
+  return await db.update(
+    'Devoluciones',
+    valores,
+    where: 'id = ?',
+    whereArgs: [_DevolucionesId],
+  );
+}
+
 //Devoluciones------------------------------------------------------------------
 
   Future<List<Map<String, dynamic>>> getDetalleDevolucionesByExploracionId(
@@ -2148,7 +2223,6 @@ Future<Map<String, dynamic>?> getPlanMensual({
 }) async {
   final db = await database;
 
-  // Consulta solo los campos ancho_m y alto_m
   List<Map<String, dynamic>> result = await db.query(
     'PlanMensual',
     columns: ['ancho_m', 'alto_m'],  // Solo obtenemos estos campos
@@ -2352,6 +2426,69 @@ Future<int> actualizarIdNubeOperacion(int idOperacion, int idNube) async {
     whereArgs: [idOperacion],
   );
 }
+
+Future<void> exportDatabaseToSql(String outputPath) async {
+  final db = await database;
+  final tables = await db.rawQuery(
+    "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE 'android_%'"
+  );
+
+  final sqlFile = File(outputPath);
+  final sink = sqlFile.openWrite();
+
+  try {
+    // Escribir encabezado SQL
+    sink.writeln('-- Exportación SQL de Seminco');
+    sink.writeln('-- Fecha: ${DateTime.now()}');
+    sink.writeln('-- Usuario: $_currentUserDni');
+    sink.writeln('BEGIN TRANSACTION;');
+    sink.writeln();
+
+    // Exportar estructura y datos de cada tabla
+    for (final table in tables) {
+      final tableName = table['name'] as String;
+      
+      // 1. Exportar estructura de la tabla
+      final createTable = await db.rawQuery(
+        "SELECT sql FROM sqlite_master WHERE type='table' AND name='$tableName'"
+      );
+      sink.writeln('${createTable.first['sql']};');
+      sink.writeln();
+
+      // 2. Exportar datos de la tabla
+      final data = await db.query(tableName);
+      if (data.isNotEmpty) {
+        final columns = data.first.keys.toList();
+        sink.writeln('-- Datos para la tabla $tableName');
+        
+        for (final row in data) {
+          final values = columns.map((col) {
+            final value = row[col];
+            if (value == null) return 'NULL';
+            if (value is String) return "'${value.replaceAll("'", "''")}'";
+            if (value is DateTime) return "'${value.toIso8601String()}'";
+            return value.toString();
+          }).join(', ');
+
+          sink.writeln('INSERT INTO $tableName (${columns.join(', ')}) VALUES ($values);');
+        }
+        sink.writeln();
+      }
+    }
+
+    sink.writeln('COMMIT;');
+    await sink.flush();
+    print('Base de datos exportada a: $outputPath');
+  } catch (e) {
+    print('Error al exportar la base de datos: $e');
+    rethrow;
+  } finally {
+    await sink.close();
+  }
+}
+
+
+
 
 
 }

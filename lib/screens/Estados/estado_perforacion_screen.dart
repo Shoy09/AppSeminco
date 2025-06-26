@@ -192,54 +192,71 @@ class _EstadoRegistroPerforacionScreenState
             borderRadius: BorderRadius.circular(8),
           ),
           child: Text(
-            label,
-            style: TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
+  label,
+  style: TextStyle(
+    color: Colors.white,
+    fontWeight: FontWeight.bold,
+    fontSize: MediaQuery.of(context).size.width < 600 ? 8 : 14,
+  ),
+  textAlign: TextAlign.center,
+),
+
         ),
       ),
     );
   }
 
-  Widget _buildCodigoTable() {
-    return Table(
-      border: TableBorder.all(color: Colors.black),
-      columnWidths: {
-        0: FixedColumnWidth(40),
-        1: FixedColumnWidth(100),
-        2: FixedColumnWidth(120),
-        3: FixedColumnWidth(120),
-        4: FixedColumnWidth(100),
-        5: FixedColumnWidth(100),
-      },
-      children: [
-        TableRow(
-          decoration: BoxDecoration(color: Colors.blue.shade200),
-          children: [
-            headerCell("N°"),
-            headerCell("Estado"),
-            headerCell("Código"),
-            headerCell("Hora Inicio"),
-            headerCell("Hora Fin"),
-            headerCell("Acciones"),
-          ],
-        ),
-        for (var item in currentData)
+Widget _buildCodigoTable() {
+  return LayoutBuilder(
+    builder: (context, constraints) {
+      bool isSmallScreen = constraints.maxWidth < 600;
+
+      Widget table = Table(
+        border: TableBorder.all(color: Colors.black),
+        columnWidths: const {
+          0: FixedColumnWidth(40),
+          1: FixedColumnWidth(100),
+          2: FixedColumnWidth(120),
+          3: FixedColumnWidth(120),
+          4: FixedColumnWidth(100),
+          5: FixedColumnWidth(100),
+        },
+        children: [
           TableRow(
+            decoration: BoxDecoration(color: Colors.blue.shade200),
             children: [
-              cellText(item["numero"] ?? ""),
-              cellText(item["estado"] ?? ""),
-              cellText(item["codigo"] ?? ""),
-              cellText(item["hora_inicio"] ?? ""),
-              cellText(item["hora_final"] ?? ""),
-              _buildDeleteIcon(context, item["id"], widget.estado == 'cerrado'),
+              headerCell("N°", isSmallScreen: isSmallScreen),
+              headerCell("Estado", isSmallScreen: isSmallScreen),
+              headerCell("Código", isSmallScreen: isSmallScreen),
+              headerCell("Hora Inicio", isSmallScreen: isSmallScreen),
+              headerCell("Hora Fin", isSmallScreen: isSmallScreen),
+              headerCell("Acciones", isSmallScreen: isSmallScreen),
             ],
           ),
-      ],
-    );
-  }
+          for (var item in currentData)
+            TableRow(
+              children: [
+                cellText(item["numero"] ?? "", isSmallScreen: isSmallScreen),
+                cellText(item["estado"] ?? "", isSmallScreen: isSmallScreen),
+                cellText(item["codigo"] ?? "", isSmallScreen: isSmallScreen),
+                cellText(item["hora_inicio"] ?? "", isSmallScreen: isSmallScreen),
+                cellText(item["hora_final"] ?? "", isSmallScreen: isSmallScreen),
+                _buildDeleteIcon(context, item["id"], widget.estado == 'cerrado'),
+              ],
+            ),
+        ],
+      );
+
+      return isSmallScreen
+          ? SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: table,
+            )
+          : table;
+    },
+  );
+}
+
 
   Widget _buildDeleteIcon(BuildContext context, String? id, bool isDisabled) {
     return IconButton(
@@ -343,27 +360,35 @@ class _EstadoRegistroPerforacionScreenState
     );
   }
 
-  Widget headerCell(String text) {
-    return Padding(
-      padding: EdgeInsets.all(8),
-      child: Text(
-        text,
-        textAlign: TextAlign.center,
-        style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+Widget headerCell(String text, {bool isSmallScreen = false}) {
+  return Padding(
+    padding: const EdgeInsets.all(8),
+    child: Text(
+      text,
+      textAlign: TextAlign.center,
+      style: TextStyle(
+        fontWeight: FontWeight.bold,
+        color: Colors.white,
+        fontSize: isSmallScreen ? 12 : 14,
       ),
-    );
-  }
+    ),
+  );
+}
 
-  Widget cellText(String text) {
-    return Padding(
-      padding: EdgeInsets.all(8),
-      child: Text(
-        text,
-        textAlign: TextAlign.center,
-        style: TextStyle(color: Colors.black),
+Widget cellText(String text, {bool isSmallScreen = false}) {
+  return Padding(
+    padding: const EdgeInsets.all(8),
+    child: Text(
+      text,
+      textAlign: TextAlign.center,
+      style: TextStyle(
+        color: Colors.black,
+        fontSize: isSmallScreen ? 10 : 14,
       ),
-    );
-  }
+    ),
+  );
+}
+
 
   void showRegisterOperationDialog(
     BuildContext context,
