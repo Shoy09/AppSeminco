@@ -1,8 +1,8 @@
-// import 'package:app_seminco/screens/inicio/splash_screen.dart';
-// import 'package:app_seminco/services/conexion%20I/ConnectivityService.dart';
-// import 'package:app_seminco/services/conexion%20I/background_sync_service.dart';
+// import 'package:app_seminco/mina%201/screens/inicio/splash_screen.dart';
+// import 'package:app_seminco/mina%201/services/conexion%20I/ConnectivityService.dart';
+// import 'package:app_seminco/mina%201/services/conexion%20I/background_sync_service.dart';
 // import 'package:flutter/material.dart';
-// import 'package:app_seminco/screens/pruebas/login.dart';
+// import 'package:app_seminco/mina%201/screens/pruebas/login.dart';
 // import 'package:provider/provider.dart';
 
 // void main() async {
@@ -41,12 +41,13 @@
 // }
 
 import 'dart:io'; // 👈 necesario para HttpOverrides
+import 'package:app_seminco/mina%201/screens/Mediciones/horizontal/horizontal.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:app_seminco/screens/pruebas/login.dart';
-import 'package:app_seminco/services/conexion I/ConnectivityService.dart';
-import 'package:app_seminco/services/conexion I/background_sync_service.dart';
-import 'package:app_seminco/screens/inicio/splash_screen.dart';
+import 'package:app_seminco/inicio/login.dart';
+import 'package:app_seminco/mina%201/services/conexion I/ConnectivityService.dart';
+import 'package:app_seminco/mina%201/services/conexion I/background_sync_service.dart';
+import 'package:app_seminco/inicio/splash_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -78,8 +79,7 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       title: 'I-MINER',
       theme: ThemeData(primarySwatch: Colors.blue),
-      home: SplashScreen(),
-      // home: LoginScreen(),
+       home: SplashScreen(),
       
     );
   }
@@ -93,3 +93,4 @@ class MyHttpOverrides extends HttpOverrides {
       ..badCertificateCallback = (X509Certificate cert, String host, int port) => true;
   }
 }
+//76161414

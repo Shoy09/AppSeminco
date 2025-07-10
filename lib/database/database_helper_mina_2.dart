@@ -1,32 +1,32 @@
 import 'dart:async';
 import 'dart:convert';
-import 'package:app_seminco/mina%201/models/Accesorio.dart';
-import 'package:app_seminco/mina%201/models/PlanMensual.dart';
+import 'package:app_seminco/mina%202/models/Accesorio.dart';
+import 'package:app_seminco/mina%202/models/PlanMensual.dart';
 import 'package:crypt/crypt.dart';
-import 'package:app_seminco/mina%201/models/Empresa.dart';
-import 'package:app_seminco/mina%201/models/Equipo.dart';
-import 'package:app_seminco/mina%201/models/Explosivo.dart';
-import 'package:app_seminco/mina%201/models/PlanMetraje.dart';
-import 'package:app_seminco/mina%201/models/PlanProduccion.dart';
-import 'package:app_seminco/mina%201/models/TipoPerforacion.dart';
-import 'package:app_seminco/mina%201/models/destinatario_correo.dart';
-import 'package:app_seminco/mina%201/models/explosivos_uni.dart';
+import 'package:app_seminco/mina%202/models/Empresa.dart';
+import 'package:app_seminco/mina%202/models/Equipo.dart';
+import 'package:app_seminco/mina%202/models/Explosivo.dart';
+import 'package:app_seminco/mina%202/models/PlanMetraje.dart';
+import 'package:app_seminco/mina%202/models/PlanProduccion.dart';
+import 'package:app_seminco/mina%202/models/TipoPerforacion.dart';
+import 'package:app_seminco/mina%202/models/destinatario_correo.dart';
+import 'package:app_seminco/mina%202/models/explosivos_uni.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:path_provider/path_provider.dart';
 import 'dart:io';
 import 'package:path/path.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
-class DatabaseHelper_Mina1 {
-  static final DatabaseHelper_Mina1 _instance = DatabaseHelper_Mina1._internal();
-  factory DatabaseHelper_Mina1() => _instance;
+class DatabaseHelper_Mina2 {
+  static final DatabaseHelper_Mina2 _instance = DatabaseHelper_Mina2._internal();
+  factory DatabaseHelper_Mina2() => _instance;
 
   static Database? _database;
   static String? _currentUserDni;
   static bool _isInitialized = false;
   static const int _currentDbVersion = 1;
 
-  DatabaseHelper_Mina1._internal() {
+  DatabaseHelper_Mina2._internal() {
     // Inicialización única para evitar múltiples llamadas
     if (!_isInitialized) {
       _initializeDatabaseFactory();
@@ -86,7 +86,7 @@ class DatabaseHelper_Mina1 {
       }
 
       String path =
-          join(documentsDirectory.path, 'Seminco_db_mina01_${_currentUserDni!}.db');
+          join(documentsDirectory.path, 'Seminco_db_mina02_${_currentUserDni!}.db');
 
       return await openDatabase(
         path,
@@ -720,7 +720,7 @@ await db.execute('''
 
   //Actualizar bd---------------------------------------------------------------------------------
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
-
+    
   }
 
   Future<bool> _columnaExiste(Database db, String tabla, String columna) async {
@@ -844,7 +844,7 @@ await db.execute('''
     required int operacionId, // ID de la Operacion relacionada
   }) async {
     final Database db =
-        await DatabaseHelper_Mina1().database; // Obtener la base de datos
+        await DatabaseHelper_Mina2().database; // Obtener la base de datos
 
     // Crear el mapa con los datos a insertar
     Map<String, dynamic> datos = {
@@ -873,7 +873,7 @@ await db.execute('''
     required int operacionId, // ID de la Operacion relacionada
   }) async {
     final Database db =
-        await DatabaseHelper_Mina1().database; // Obtener la base de datos
+        await DatabaseHelper_Mina2().database; // Obtener la base de datos
 
     // Crear el mapa con los datos a insertar
     Map<String, dynamic> datos = {
@@ -902,7 +902,7 @@ await db.execute('''
     required int operacionId, // ID de la Operacion relacionada
   }) async {
     final Database db =
-        await DatabaseHelper_Mina1().database; // Obtener la base de datos
+        await DatabaseHelper_Mina2().database; // Obtener la base de datos
 
     // Crear el mapa con los datos a insertar
     Map<String, dynamic> datos = {
@@ -1191,7 +1191,7 @@ await db.execute('''
 
   //Login cuando no hay conexion
   Future<bool> loginOffline(String dni, String password) async {
-    final db = await DatabaseHelper_Mina1().database;
+    final db = await DatabaseHelper_Mina2().database;
     final List<Map<String, dynamic>> result = await db.query(
       'Usuario',
       where: 'codigo_dni = ?',
@@ -2211,7 +2211,7 @@ await db.execute('''
   }
 
   Future<void> cerrarOperacion(int operacionId) async {
-    final Database db = await DatabaseHelper_Mina1().database;
+    final Database db = await DatabaseHelper_Mina2().database;
 
     await db.update(
       'Operacion',

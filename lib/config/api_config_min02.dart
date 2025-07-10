@@ -1,6 +1,7 @@
-class ApiConfig {
-  static const String baseUrl = 'https://backend-seminco.onrender.com/api';
-  // 'https://backendseminco-production.up.railway.app/api';
+class ApiConfig_mina2 {
+  static const String baseUrl =
+      'https://backend-seminco-mina-02.onrender.com/api';
+      // 'https://backendseminco-production.up.railway.app/api';
   static const String loginEndpoint =
       '/auth/login'; // Asegurando que el endpoint es correcto
   static const String formatoPlanMineralEndpoint = '/PlanMineral/PlanMineral';
