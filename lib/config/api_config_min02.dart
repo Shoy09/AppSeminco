@@ -33,4 +33,5 @@ class ApiConfig_mina2 {
 
   static const String medicionesHorizontalEndpoint = '/medicion-tal-horizontal';
   static const String medicionesLargoEndpoint = '/medicion-tal-largo';
+  static const String toneladasEndpoint = '/toneladas';
 }

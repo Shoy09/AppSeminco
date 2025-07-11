@@ -57,6 +57,8 @@ List<TipoPerforacion> _tiposPerforacion = [];
     'Diciembre'
   ];
 
+List<Map<String, dynamic>> _toneladas = [];
+
   @override
   void initState() {
     super.initState();
@@ -66,8 +68,57 @@ List<TipoPerforacion> _tiposPerforacion = [];
     _getTiposPerforacion();
     _cargarExploraciones();
     _cargarDatosExplosivos();
+    _cargarDatosToneladas();
     
   }
+  
+void _cargarDatosToneladas() async {
+  List<Map<String, dynamic>> toneladas = await DatabaseHelper_Mina1().obtenerTodasToneladas();
+  print("Toneladas locales: $toneladas");
+
+  setState(() {
+    _toneladas = toneladas;
+    // Si ya tenemos las exploraciones, asignamos las toneladas
+    if (_exploracionesSucio.isNotEmpty) {
+      _asignarToneladasAExploraciones();
+    }
+  });
+}
+
+void _asignarToneladasAExploraciones() {
+  List<Map<String, dynamic>> exploracionesActualizadas = List.from(_exploracionesSucio);
+
+  for (var exploracion in exploracionesActualizadas) {
+    // Construimos el labor compuesto igual que en la tabla
+    String laborExploracion = [
+      exploracion['tipo_labor']?.toString() ?? '',
+      exploracion['labor']?.toString() ?? '',
+      exploracion['ala']?.toString() ?? ''
+    ].where((part) => part.isNotEmpty).join(' ').trim();
+
+    // Buscamos una tonelada que coincida en los campos clave
+    var toneladaCorrespondiente = _toneladas.firstWhere(
+      (tonelada) =>
+        tonelada['fecha'] == exploracion['fecha'] &&
+        tonelada['turno'] == exploracion['turno'] &&
+        tonelada['zona'] == exploracion['zona'] &&
+        tonelada['labor'] == laborExploracion,
+      orElse: () => {},
+    );
+
+    // Asignamos las toneladas (0.0 si no hay coincidencia)
+    exploracion['toneladas'] = toneladaCorrespondiente.isNotEmpty 
+      ? toneladaCorrespondiente['toneladas']?.toString() ?? '0.0'
+      : '0.0';
+  }
+
+  setState(() {
+    _exploracionesSucio = exploracionesActualizadas;
+    if (_exploraciones.isNotEmpty) {
+      _filtrarExploraciones();
+    }
+  });
+}
 
     void _cargarDatosExplosivos() async {
     List<Explosivo> explosivos = await DatabaseHelper_Mina1().getExplosivos();
@@ -109,6 +160,9 @@ Future<void> _cargarExploraciones() async {
     if (_explosivos.isNotEmpty) {
         calcularKgExplosivos();
       }
+       if (_toneladas.isNotEmpty) {
+      _asignarToneladasAExploraciones();
+    }
   } catch (e) {
     setState(() {
       _isLoading = false;
@@ -442,16 +496,20 @@ void _filtrarExploraciones() {
       ),
     );
   }
-  Future<void> insertarYActualizarMedicionesLargo() async {
+
+Future<void> insertarYActualizarMedicionesLargo() async {
   List<Map<String, dynamic>> registros = obtenerDatosEditadosFormateados();
 
   if (registros.isEmpty) {
-    print("No hay registros editados para insertar.");
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('No hay registros con datos válidos (kg_explosivos o toneladas > 0)')),
+    );
     return;
   }
 
   final dbHelper = DatabaseHelper_Mina1();
   List<int> idsParaActualizar = [];
+  int registrosInsertados = 0;
 
   try {
     for (var registro in registros) {
@@ -462,58 +520,69 @@ void _filtrarExploraciones() {
       }
 
       int idInsertado = await dbHelper.insertarMedicionLargo(registro);
-      print("Registro insertado con id: $idInsertado, id_explosivo original: $idExplosivo");
+      print("✅ Registro insertado con id: $idInsertado");
       idsParaActualizar.add(idExplosivo);
+      registrosInsertados++;
     }
 
     if (idsParaActualizar.isNotEmpty) {
       await dbHelper.actualizarMedicionEXplosivo(idsParaActualizar);
-      print("Registros actualizados en nube_Datos_trabajo_exploraciones con medicion=1");
+      print("🔄 ${idsParaActualizar.length} registros actualizados en nube_Datos_trabajo_exploraciones");
       
-      // Mostrar mensaje de éxito
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Datos guardados exitosamente')),
+        SnackBar(content: Text('$registrosInsertados registros guardados exitosamente')),
       );
       
-      // Recargar los datos
       await _recargarDatos();
     }
   } catch (e) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Error al guardar datos: $e')),
+      SnackBar(content: Text('Error al guardar datos: ${e.toString()}')),
     );
-    print("Error al insertar/actualizar mediciones: $e");
+    print("❌ Error al insertar/actualizar mediciones: $e");
   }
 }
 
-  List<Map<String, dynamic>> obtenerDatosEditadosFormateados() {
-    List<Map<String, dynamic>> listaDatos = [];
+List<Map<String, dynamic>> obtenerDatosEditadosFormateados() {
+  List<Map<String, dynamic>> listaDatos = [];
 
-    registrosEditados.forEach((index, registro) {
-      String tipoLaborLaborAla =
-          "${registro['tipo_labor'] ?? ''} ${registro['labor'] ?? ''} ${registro['ala'] ?? ''}"
-              .trim();
+  for (var exploracion in _exploraciones) {
+    double kgExplosivos = double.tryParse(exploracion['kg_explosivos']?.toString() ?? '0.0') ?? 0.0;
+    double toneladas = double.tryParse(exploracion['toneladas']?.toString() ?? '0.0') ?? 0.0;
+
+    // ✅ Cambio clave: Ahora verificamos específicamente que toneladas > 0
+    // (kgExplosivos puede ser 0 o mayor)
+    if (toneladas > 0) {
+      String tipoLaborLaborAla = [
+        exploracion['tipo_labor']?.toString() ?? '',
+        exploracion['labor']?.toString() ?? '',
+        exploracion['ala']?.toString() ?? ''
+      ].where((part) => part.isNotEmpty).join(' ').trim();
 
       Map<String, dynamic> datos = {
-        // 'id_registro': registro['id'], // 🔴 no incluir en insert, pero sí guardarlo aparte si lo necesitas
-        'id_explosivo': registro['id'], // ✅ lo guardamos para otro uso
-        'fecha': registro['fecha'],
-        'turno': registro['turno'],
-        'empresa': registro['empresa'],
-        'zona': registro['zona'],
+        'id_explosivo': exploracion['id'],
+        'fecha': exploracion['fecha'],
+        'turno': exploracion['turno'],
+        'empresa': exploracion['empresa'],
+        'zona': exploracion['zona'],
         'labor': tipoLaborLaborAla,
-        'veta': registro['veta'],
-        'tipo_perforacion': registro['tipo_perforacion'],
-        'kg_explosivos': registro['kg_explosivos'],
-        'toneladas': registro['toneladas'],
-        'idnube': registro['idnube'],
+        'veta': exploracion['veta'],
+        'tipo_perforacion': exploracion['tipo_perforacion'],
+        'kg_explosivos': kgExplosivos.toStringAsFixed(2),
+        'toneladas': toneladas.toStringAsFixed(2),
+        'idnube': exploracion['idnube'] ?? 0,
       };
 
       listaDatos.add(datos);
-    });
-
-    return listaDatos;
+      print("✅ Registro válido agregado - Toneladas: $toneladas");
+    } else {
+      print("⛔ Registro omitido - Toneladas: $toneladas");
+    }
   }
+
+  return listaDatos;
+}
+
 
 Future<void> _recargarDatos() async {
   setState(() {
@@ -566,42 +635,6 @@ Widget tableCellMulti(List<String> texts, {bool isBold = false}) {
   );
 }
 
-
-  Widget tableCellEditable(String tipoPerforacion, String labor, int index,
-      String campo, dynamic valor) {
-    final key = '$tipoPerforacion-$labor-$index-$campo';
-
-    if (!controllers.containsKey(key)) {
-      controllers[key] = TextEditingController(text: valor?.toString() ?? '');
-    }
-
-    final controller = controllers[key]!;
-
-    return Padding(
-      padding: const EdgeInsets.all(8.0),
-      child: TextField(
-        controller: controller,
-        onChanged: (newValue) {
-          if (newValue.isEmpty || double.tryParse(newValue) != null) {
-            actualizarValor(tipoPerforacion, labor, index, campo, newValue);
-          } else {
-            controller.text = valor?.toString() ?? '';
-            controller.selection = TextSelection.fromPosition(
-                TextPosition(offset: controller.text.length));
-          }
-        },
-        keyboardType: TextInputType.numberWithOptions(decimal: true),
-        decoration: InputDecoration(
-          border: OutlineInputBorder(),
-          isDense: true,
-          contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-        ),
-        inputFormatters: [
-          FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}')),
-        ],
-      ),
-    );
-  }
 
     void actualizarValor(String tipoPerforacion, String labor, int index,
       String campo, String nuevoValor) {

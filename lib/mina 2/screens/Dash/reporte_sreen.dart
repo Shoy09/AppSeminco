@@ -22,6 +22,7 @@ import 'package:app_seminco/mina%202/services/Plan%20mensual/api_service_plan_me
 import 'package:app_seminco/mina%202/services/api_service_destinatarios.dart';
 import 'package:app_seminco/mina%202/services/api_service_estado.dart';
 import 'package:app_seminco/mina%202/services/api_service_explosivos.dart';
+import 'package:app_seminco/mina%202/services/api_service_toneladas.dart';
 import 'package:app_seminco/mina%202/services/api_services_Empresa.dart';
 import 'package:app_seminco/mina%202/services/api_services_Equipo.dart';
 import 'package:flutter/material.dart';
@@ -85,6 +86,7 @@ class _ReporteScreenMina2State extends State<ReporteScreenMina2> {
         "Plan Mensual": () => fetchPlanMensual(anio, mes),
         "Plan Metraje": () => fetchPlanMetraje(anio, mes),
         "Plan Producción": () => fetchPlanProduccion(anio, mes),
+        "Toneladas": fetchToneladas,
       };
 
       bool errorOcurrido = false;
@@ -145,6 +147,24 @@ class _ReporteScreenMina2State extends State<ReporteScreenMina2> {
   bool estaAutorizadoPara(String operacion) {
     return operacionesAutorizadas[operacion] == true;
   }
+
+  Future<void> fetchToneladas() async {
+  try {
+    final apiService = ApiServiceToneladas(); // Crear instancia del service
+
+    final toneladas = await apiService.fetchToneladas(
+        widget.token); // Obtener toneladas desde la API
+    print("Toneladas cargadas correctamente: $toneladas");
+
+    // Verificar si los datos se almacenaron correctamente en la base de datos local
+    final dbHelper = DatabaseHelper_Mina2();
+    final toneladasBD = await dbHelper.getAll(
+        'toneladas'); // Obtener toneladas de la base de datos local
+    print("Toneladas en la base de datos local: $toneladasBD");
+  } catch (e) {
+    print("Error al cargar las toneladas: $e");
+  }
+}
 
   Future<void> _cargarNombreUsuario() async {
     try {

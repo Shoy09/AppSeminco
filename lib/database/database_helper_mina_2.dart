@@ -713,6 +713,17 @@ await db.execute('''
     )
   ''');
 
+  await db.execute('''
+  CREATE TABLE IF NOT EXISTS toneladas (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    fecha TEXT NOT NULL,
+    turno TEXT,
+    zona TEXT NOT NULL,
+    tipo TEXT NOT NULL,
+    labor TEXT NOT NULL,
+    toneladas REAL NOT NULL
+  )
+''');
 
     print(
         'Base de datos y tablas creadas: FormatoPlanMineral, Operacion, PerforacionTaladroLargo, Slot, Taladro, Estado, Usuario');
@@ -2677,4 +2688,16 @@ Future<List<Map<String, dynamic>>> _obtenerDevolucionesPorExploracion(int explor
 
   return devolucionesCompletas;
 }
+
+//TONELADASSSS----------------------------------------------------------------------
+Future<List<Map<String, dynamic>>> obtenerTodasToneladas() async {
+  final db = await database;
+  final List<Map<String, dynamic>> result = await db.query(
+    'toneladas',
+    orderBy: 'fecha DESC', // Ordenar por fecha descendente
+  );
+  return result;
+}
+
+
 }
