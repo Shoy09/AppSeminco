@@ -1,3 +1,4 @@
+import 'package:app_seminco/components/showPdfDialog_mina2.dart';
 import 'package:flutter/material.dart';
 import 'package:app_seminco/database/database_helper_mina_2.dart';
 
@@ -6,23 +7,22 @@ class FormularioScreen extends StatefulWidget {
   final String tipoOperacion; // 🔹 Parámetro recibido
   final int id;
   final String zona;
-    final int? idOperacion; 
-
+final int operacionId;
   final String tipo_labor;
   final String labor;
-  final String veta;
   final String nivel;
+  final String ala;
 
   FormularioScreen(
       {required this.id,
       required this.estado,
-            required this.idOperacion,
+      required this.ala,
 
+      required this.operacionId,
       required this.tipoOperacion,
       required this.zona,
       required this.tipo_labor,
       required this.labor,
-      required this.veta,
       required this.nivel});
 
   @override
@@ -46,14 +46,14 @@ void obtenerPlanMensual() async {
   String zona = widget.zona;
   String tipoLabor = widget.tipo_labor;
   String labor = widget.labor;
-  String estructuraVeta = widget.veta;
+  
   String nivel = widget.nivel;
 
-  var resultado = await dbHelper.getPlanMensual(
+  var resultado = await dbHelper.getPlanMensualHori(
     zona: zona,
     tipoLabor: tipoLabor,
     labor: labor,
-    estructuraVeta: estructuraVeta,
+    
     nivel: nivel,
   );
 
@@ -98,183 +98,37 @@ void obtenerPlanMensual() async {
     });
   }
 
-  Future<void> _addNewRecord() async {
-    TextEditingController nivelController =
-        TextEditingController(text: widget.nivel);
-    TextEditingController laborController =
-        TextEditingController(text: widget.labor);
-    TextEditingController seccionLaborController = TextEditingController(text: area?.toString() ?? '');
-    TextEditingController nbrocaController = TextEditingController();
-    TextEditingController ntaladroController = TextEditingController();
-    TextEditingController longitudPerforacionController =
-        TextEditingController();
-    TextEditingController mallaInstaladaController = TextEditingController();
+Future<void> _addNewRecord() async {
+  TextEditingController nivelController = TextEditingController(text: widget.nivel);
+  TextEditingController laborController = TextEditingController(text: widget.labor);
+  TextEditingController ntaladroController = TextEditingController();
+  TextEditingController longitudPerforacionController = TextEditingController();
+  TextEditingController metrosPerforadosController = TextEditingController(); // Nuevo controlador
+  TextEditingController mallaInstaladaController = TextEditingController();
+  TextEditingController detallesController = TextEditingController();
+  
+  // Lista de materiales disponibles
+  List<String> materiales = ['Desmonte', 'Mineral'];
+  String? materialSeleccionado;
 
-    String? selectedCodigoActividad;
-    List<String> errores = [];
-
-    await showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return StatefulBuilder(
-          builder: (context, setState) {
-            return Dialog(
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10)),
-              child: SizedBox(
-                width: MediaQuery.of(context).size.width * 0.8,
-                height: MediaQuery.of(context).size.height * 0.7,
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text("Agregar Nuevo Registro",
-                          style: TextStyle(
-                              fontSize: 18, fontWeight: FontWeight.bold)),
-                      Expanded(
-                        child: SingleChildScrollView(
-                          child: Column(
-                            children: [
-                              _buildDropdownField(
-                                "Código Actividad",
-                                estados,
-                                selectedCodigoActividad,
-                                (String? newValue) {
-                                  setState(() {
-                                    selectedCodigoActividad =
-                                        newValue?.split(" - ")[0];
-                                  });
-                                },
-                              ),
-                              _buildNumberField("Nivel", nivelController,
-                                  readOnly: true),
-                              _buildTextField("Labor", laborController,
-                                  readOnly: true),
-                              _buildNumberField("Sección de la Labor (a x b)",
-                                  seccionLaborController, readOnly: true),
-                              _buildNumberField("N° Broca", nbrocaController),
-                              _buildNumberField(
-                                  "N° Taladro", ntaladroController),
-                              _buildDecimalField("Longitud de Perforación (m)",
-                                  longitudPerforacionController),
-                              _buildDecimalField("Malla instalada (m²)",
-                                  mallaInstaladaController),
-                              if (errores.isNotEmpty)
-                                Padding(
-                                  padding: const EdgeInsets.only(top: 8.0),
-                                  child: Column(
-                                    children: errores
-                                        .map((error) => Text(
-                                              error,
-                                              style: TextStyle(
-                                                  color: Colors.red,
-                                                  fontWeight: FontWeight.bold),
-                                            ))
-                                        .toList(),
-                                  ),
-                                ),
-                            ],
-                          ),
-                        ),
-                      ),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        children: [
-                          TextButton(
-                            onPressed: () {
-                              Navigator.of(context).pop();
-                            },
-                            child: Text("Cancelar"),
-                          ),
-                          ElevatedButton(
-                            onPressed: () async {
-                              errores.clear();
-
-                              if (selectedCodigoActividad == null ||
-                                  selectedCodigoActividad!.isEmpty)
-                                errores
-                                    .add("Seleccione un Código de Actividad.");
-                              if (nivelController.text.isEmpty)
-                                errores.add("El campo 'Nivel' es obligatorio.");
-                              if (laborController.text.isEmpty)
-                                errores.add("El campo 'Labor' es obligatorio.");
-                              if (seccionLaborController.text.isEmpty)
-                                errores.add(
-                                    "El campo 'Sección de la Labor' es obligatorio.");
-                              if (nbrocaController.text.isEmpty)
-                                errores
-                                    .add("El campo 'N° Broca' es obligatorio.");
-                              if (ntaladroController.text.isEmpty)
-                                errores.add(
-                                    "El campo 'N° Taladro' es obligatorio.");
-                              if (longitudPerforacionController.text.isEmpty)
-                                errores.add(
-                                    "El campo 'Longitud de Perforación' es obligatorio.");
-                              if (mallaInstaladaController.text.isEmpty)
-                                errores.add(
-                                    "El campo 'Malla instalada' es obligatorio.");
-
-                              if (errores.isNotEmpty) {
-                                setState(() {});
-                                return; // No continuar si hay errores
-                              }
-
-                              await dbHelper.insertInterSostenimiento(
-                                widget.id,
-                                selectedCodigoActividad ?? "",
-                                nivelController.text,
-                                laborController.text,
-                                seccionLaborController.text,
-                                int.tryParse(nbrocaController.text) ?? 0,
-                                int.tryParse(ntaladroController.text) ?? 0,
-                                double.tryParse(
-                                        longitudPerforacionController.text) ??
-                                    0.0,
-                                mallaInstaladaController.text,
-                              );
-
-                              // 🔹 Actualiza el estado en Operacion a "parciales"
-                              if (widget.idOperacion != null) {
-                                await dbHelper.actualizarEstadoAParciales(
-                                    widget.idOperacion!);
-                              }
-                              
-                              _loadData();
-                              Navigator.of(context).pop();
-                            },
-                            child: Text("Guardar"),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            );
-          },
-        );
-      },
-    );
+  // Función para calcular metros perforados
+  void calcularMetrosPerforados() {
+    if (ntaladroController.text.isNotEmpty && 
+        longitudPerforacionController.text.isNotEmpty) {
+      double ntaladros = double.tryParse(ntaladroController.text) ?? 0;
+      double longitudPies = double.tryParse(longitudPerforacionController.text) ?? 0;
+      // Convertir pies a metros y multiplicar por número de taladros
+      double metros = longitudPies * 0.3048 * ntaladros;
+      metrosPerforadosController.text = metros.toStringAsFixed(2);
+    } else {
+      metrosPerforadosController.text = '';
+    }
   }
 
-  Future<void> _editRecord(Map<String, dynamic> record) async {
-  TextEditingController nivelController =
-      TextEditingController(text: record['nivel']);
-  TextEditingController laborController =
-      TextEditingController(text: record['labor']);
-  TextEditingController seccionLaborController =
-      TextEditingController(text: record['seccion_de_labor']);
-  TextEditingController nbrocaController =
-      TextEditingController(text: record['nbroca'].toString());
-  TextEditingController ntaladroController =
-      TextEditingController(text: record['ntaladro'].toString());
-  TextEditingController longitudPerforacionController =
-      TextEditingController(text: record['longitud_perforacion'].toString());
-  TextEditingController mallaInstaladaController =
-      TextEditingController(text: record['malla_instalada'].toString());
+  // Configurar listeners
+  ntaladroController.addListener(calcularMetrosPerforados);
+  longitudPerforacionController.addListener(calcularMetrosPerforados);
 
-  String? selectedCodigoActividad = record['codigo_actividad'];
   List<String> errores = [];
 
   await showDialog(
@@ -283,46 +137,67 @@ void obtenerPlanMensual() async {
       return StatefulBuilder(
         builder: (context, setState) {
           return Dialog(
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
             child: SizedBox(
               width: MediaQuery.of(context).size.width * 0.8,
-              height: MediaQuery.of(context).size.height * 0.7,
+              height: MediaQuery.of(context).size.height * 0.8,
               child: Padding(
                 padding: const EdgeInsets.all(16.0),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text("Actualizar Registro",
-                        style: TextStyle(
-                            fontSize: 18, fontWeight: FontWeight.bold)),
+                    Text("Agregar Nuevo Registro",
+                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                     Expanded(
                       child: SingleChildScrollView(
                         child: Column(
                           children: [
-                            _buildDropdownField(
-                              "Código Actividad",
-                              estados,
-                              selectedCodigoActividad,
-                              (String? newValue) {
-                                setState(() {
-                                  selectedCodigoActividad =
-                                      newValue?.split(" - ")[0];
-                                });
-                              },
-                            ),
-                            _buildNumberField("Nivel", nivelController,
-                                readOnly: true),
-                            _buildTextField("Labor", laborController,
-                                readOnly: true),
-                            _buildNumberField("Sección de la Labor (a x b)",
-                                seccionLaborController, readOnly: true),
-                            _buildNumberField("N° Broca", nbrocaController),
+                            _buildNumberField("Nivel", nivelController, readOnly: true),
+                            _buildTextField("Labor", laborController, readOnly: true),
                             _buildNumberField("N° Taladro", ntaladroController),
-                            _buildDecimalField("Longitud Perforación (m)",
-                                longitudPerforacionController),
-                            _buildDecimalField("Malla instalada (m²)",
-                                mallaInstaladaController),
+                            Padding(
+                              padding: const EdgeInsets.only(top: 16.0),
+                              child: InputDecorator(
+                                decoration: InputDecoration(
+                                  labelText: "Material utilizado",
+                                  border: OutlineInputBorder(),
+                                ),
+                                child: DropdownButtonHideUnderline(
+                                  child: DropdownButton<String>(
+                                    value: materialSeleccionado,
+                                    isDense: true,
+                                    isExpanded: true,
+                                    hint: Text("Seleccione un material"),
+                                    items: materiales.map((String value) {
+                                      return DropdownMenuItem<String>(
+                                        value: value,
+                                        child: Text(value),
+                                      );
+                                    }).toList(),
+                                    onChanged: (String? newValue) {
+                                      setState(() {
+                                        materialSeleccionado = newValue;
+                                      });
+                                    },
+                                  ),
+                                ),
+                              ),
+                            ),
+                            _buildDecimalField("Longitud De Perforación (pies)", longitudPerforacionController),
+                            _buildDecimalField("Malla instalada (m²)", mallaInstaladaController),
+                            
+                            Padding(
+                              padding: const EdgeInsets.only(top: 8.0),
+                              child: TextField(
+                                controller: detallesController,
+                                maxLines: 3,
+                                decoration: InputDecoration(
+                                  labelText: "Detalles del trabajo realizado",
+                                  border: OutlineInputBorder(),
+                                ),
+                              ),
+                            ),
+                            
                             if (errores.isNotEmpty)
                               Padding(
                                 padding: const EdgeInsets.only(top: 8.0),
@@ -352,54 +227,238 @@ void obtenerPlanMensual() async {
                         ),
                         ElevatedButton(
                           onPressed: () async {
-  errores.clear();
+                            errores.clear();
 
-  if (selectedCodigoActividad == null || selectedCodigoActividad!.isEmpty)
-    errores.add("Seleccione un Código de Actividad.");
-  if (nivelController.text.isEmpty)
-    errores.add("El campo 'Nivel' es obligatorio.");
-  if (laborController.text.isEmpty)
-    errores.add("El campo 'Labor' es obligatorio.");
-  if (seccionLaborController.text.isEmpty)
-    errores.add("El campo 'Sección de la Labor' es obligatorio.");
-  if (nbrocaController.text.isEmpty)
-    errores.add("El campo 'N° Broca' es obligatorio.");
-  if (ntaladroController.text.isEmpty)
-    errores.add("El campo 'N° Taladro' es obligatorio.");
-  if (longitudPerforacionController.text.isEmpty)
-    errores.add("El campo 'Longitud de Perforación' es obligatorio.");
-  if (mallaInstaladaController.text.isEmpty)
-    errores.add("El campo 'Malla instalada' es obligatorio.");
+                            if (nivelController.text.isEmpty)
+                              errores.add("El campo 'Nivel' es obligatorio.");
+                            if (laborController.text.isEmpty)
+                              errores.add("El campo 'Labor' es obligatorio.");
+                            if (ntaladroController.text.isEmpty)
+                              errores.add("El campo 'N° Taladro' es obligatorio.");
+                            if (longitudPerforacionController.text.isEmpty)
+                              errores.add("El campo 'Longitud de Perforación' es obligatorio.");
+                            if (metrosPerforadosController.text.isEmpty)
+                              errores.add("El cálculo de metros perforados no es válido.");
+                            if (mallaInstaladaController.text.isEmpty)
+                              errores.add("El campo 'Malla instalada' es obligatorio.");
+                            if (materialSeleccionado == null)
+                              errores.add("Debe seleccionar un material.");
 
-  if (errores.isNotEmpty) {
-    setState(() {});
+                            if (errores.isNotEmpty) {
+                              setState(() {});
+                              return;
+                            }
 
-    // Muestra un SnackBar con los errores
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(errores.join("\n")),
-        backgroundColor: Colors.red,
-        duration: Duration(seconds: 3),
-      ),
-    );
+                            await dbHelper.insertInterSostenimiento(
+                              widget.id,
+                              nivelController.text,
+                              laborController.text,
+                              int.tryParse(ntaladroController.text) ?? 0,
+                              double.tryParse(longitudPerforacionController.text) ?? 0.0,
+                              mallaInstaladaController.text,
+                              double.tryParse(metrosPerforadosController.text) ?? 0.0,
+                              detallesController.text,
+                              materialSeleccionado!,
+                            );
 
-    return;
+                            if (widget.operacionId != null) {
+                              await dbHelper.actualizarEstadoAParciales(widget.operacionId!);
+                            }
+                            
+                            _loadData();
+                            Navigator.of(context).pop();
+                            Navigator.of(context).pop();
+                          },
+                          child: Text("Guardar"),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
+      );
+    },
+  );
+
+  // Limpiar listeners
+  ntaladroController.removeListener(calcularMetrosPerforados);
+  longitudPerforacionController.removeListener(calcularMetrosPerforados);
+}
+
+Future<void> _editRecord(Map<String, dynamic> record) async {
+  TextEditingController nivelController = TextEditingController(text: record['nivel']);
+  TextEditingController laborController = TextEditingController(text: record['labor']);
+  TextEditingController ntaladroController = TextEditingController(text: record['ntaladro'].toString());
+  TextEditingController longitudPerforacionController = TextEditingController(text: record['longitud_perforacion'].toString());
+  TextEditingController metrosPerforadosController = TextEditingController(text: record['metros_perforados']?.toString() ?? '');
+  TextEditingController mallaInstaladaController = TextEditingController(text: record['malla_instalada'].toString());
+  TextEditingController detallesController = TextEditingController(text: record['detalles_trabajo_realizado']?.toString() ?? '');
+  
+  // Lista de materiales disponibles
+  List<String> materiales = ['Desmonte', 'Mineral'];
+  String? materialSeleccionado = record['material']?.toString();
+
+  // Función para calcular metros perforados
+  void calcularMetrosPerforados() {
+    if (ntaladroController.text.isNotEmpty && 
+        longitudPerforacionController.text.isNotEmpty) {
+      double ntaladros = double.tryParse(ntaladroController.text) ?? 0;
+      double longitudPies = double.tryParse(longitudPerforacionController.text) ?? 0;
+      // Convertir pies a metros y multiplicar por número de taladros
+      double metros = longitudPies * 0.3048 * ntaladros;
+      metrosPerforadosController.text = metros.toStringAsFixed(2);
+    } else {
+      metrosPerforadosController.text = '';
+    }
   }
 
+  // Configurar listeners
+  ntaladroController.addListener(calcularMetrosPerforados);
+  longitudPerforacionController.addListener(calcularMetrosPerforados);
+  // Calcular valor inicial
+  calcularMetrosPerforados();
+
+  List<String> errores = [];
+
+  await showDialog(
+    context: context,
+    builder: (BuildContext context) {
+      return StatefulBuilder(
+        builder: (context, setState) {
+          return Dialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            child: SizedBox(
+              width: MediaQuery.of(context).size.width * 0.8,
+              height: MediaQuery.of(context).size.height * 0.8,
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text("Actualizar Registro",
+                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                    Expanded(
+                      child: SingleChildScrollView(
+                        child: Column(
+                          children: [
+                            _buildNumberField("Nivel", nivelController, readOnly: true),
+                            _buildTextField("Labor", laborController, readOnly: true),
+                            _buildNumberField("N° Taladro", ntaladroController),
+                            Padding(
+                              padding: const EdgeInsets.only(top: 16.0),
+                              child: InputDecorator(
+                                decoration: InputDecoration(
+                                  labelText: "Material utilizado",
+                                  border: OutlineInputBorder(),
+                                ),
+                                child: DropdownButtonHideUnderline(
+                                  child: DropdownButton<String>(
+                                    value: materialSeleccionado,
+                                    isDense: true,
+                                    isExpanded: true,
+                                    hint: Text("Seleccione un material"),
+                                    items: materiales.map((String value) {
+                                      return DropdownMenuItem<String>(
+                                        value: value,
+                                        child: Text(value),
+                                      );
+                                    }).toList(),
+                                    onChanged: (String? newValue) {
+                                      setState(() {
+                                        materialSeleccionado = newValue;
+                                      });
+                                    },
+                                  ),
+                                ),
+                              ),
+                            ),
+                            _buildDecimalField("Longitud De Perforación (pies)", longitudPerforacionController),
+                            _buildDecimalField("Malla instalada (m²)", mallaInstaladaController),
+                            
+                            Padding(
+                              padding: const EdgeInsets.only(top: 8.0),
+                              child: TextField(
+                                controller: detallesController,
+                                maxLines: 3,
+                                decoration: InputDecoration(
+                                  labelText: "Detalles del trabajo realizado",
+                                  border: OutlineInputBorder(),
+                                ),
+                              ),
+                            ),
+                            
+                            if (errores.isNotEmpty)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 8.0),
+                                child: Column(
+                                  children: errores
+                                      .map((error) => Text(
+                                            error,
+                                            style: TextStyle(
+                                                color: Colors.red,
+                                                fontWeight: FontWeight.bold),
+                                          ))
+                                      .toList(),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        TextButton(
+                          onPressed: () {
+                            Navigator.of(context).pop();
+                          },
+                          child: Text("Cancelar"),
+                        ),
+                        ElevatedButton(
+                          onPressed: () async {
+                            errores.clear();
+
+                            if (nivelController.text.isEmpty)
+                              errores.add("El campo 'Nivel' es obligatorio.");
+                            if (laborController.text.isEmpty)
+                              errores.add("El campo 'Labor' es obligatorio.");
+                            if (ntaladroController.text.isEmpty)
+                              errores.add("El campo 'N° Taladro' es obligatorio.");
+                            if (longitudPerforacionController.text.isEmpty)
+                              errores.add("El campo 'Longitud de Perforación' es obligatorio.");
+                            if (metrosPerforadosController.text.isEmpty)
+                              errores.add("El cálculo de metros perforados no es válido.");
+                            if (mallaInstaladaController.text.isEmpty)
+                              errores.add("El campo 'Malla instalada' es obligatorio.");
+                            if (materialSeleccionado == null)
+                              errores.add("Debe seleccionar un material.");
+
+                            if (errores.isNotEmpty) {
+                              setState(() {});
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(errores.join("\n")),
+                                  backgroundColor: Colors.red,
+                                  duration: Duration(seconds: 3),
+                                ),
+                              );
+                              return;
+                            }
 
                             await dbHelper.updateInterSostenimiento(
                               record['id'],
                               {
-                                "codigo_actividad": selectedCodigoActividad ?? "",
                                 "nivel": nivelController.text,
                                 "labor": laborController.text,
-                                "seccion_de_labor": seccionLaborController.text,
-                                "nbroca": int.tryParse(nbrocaController.text) ?? 0,
                                 "ntaladro": int.tryParse(ntaladroController.text) ?? 0,
-                                "longitud_perforacion": double.tryParse(
-                                        longitudPerforacionController.text) ??
-                                    0.0,
+                                "longitud_perforacion": double.tryParse(longitudPerforacionController.text) ?? 0.0,
+                                "metros_perforados": double.tryParse(metrosPerforadosController.text) ?? 0.0, // Nuevo campo
                                 "malla_instalada": mallaInstaladaController.text,
+                                "detalles_trabajo_realizado": detallesController.text,
+                                "material": materialSeleccionado,
                               },
                             );
                             _loadData();
@@ -418,6 +477,10 @@ void obtenerPlanMensual() async {
       );
     },
   );
+
+  // Limpiar listeners
+  ntaladroController.removeListener(calcularMetrosPerforados);
+  longitudPerforacionController.removeListener(calcularMetrosPerforados);
 }
 
 
@@ -539,13 +602,12 @@ void _deleteRecord(int recordId) async {
     );
   }
 
-  @override
+    @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text("Tabla de Sostenimiento"),
-        backgroundColor: Color(0xFF21899C),
-      ),
+          title: Text("Tabla de taladro largo"),
+          backgroundColor: Color(0xFF21899C)),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -563,30 +625,34 @@ void _deleteRecord(int recordId) async {
                       DataColumn(
                           label: Text('N°',
                               style: TextStyle(fontWeight: FontWeight.bold))),
-                      DataColumn(
-                          label: Text('Código\nde actividad',
-                              style: TextStyle(fontWeight: FontWeight.bold))),
+                      
                       DataColumn(
                           label: Text('Nivel',
                               style: TextStyle(fontWeight: FontWeight.bold))),
                       DataColumn(
                           label: Text('Labor',
                               style: TextStyle(fontWeight: FontWeight.bold))),
-                      DataColumn(
-                          label: Text('Sección de\nla labor (a x b)',
-                              style: TextStyle(fontWeight: FontWeight.bold))),
-                      DataColumn(
-                          label: Text('N° Broca',
-                              style: TextStyle(fontWeight: FontWeight.bold))),
+                      
+                     
                       DataColumn(
                           label: Text('N° Taladro',
                               style: TextStyle(fontWeight: FontWeight.bold))),
                       DataColumn(
                           label: Text('Longitud de\nperforación (m)',
                               style: TextStyle(fontWeight: FontWeight.bold))),
+                          DataColumn(label: Center(child: Text('Metros Perforados', style: TextStyle(fontWeight: FontWeight.bold)))),
+
                       DataColumn(
                           label: Text('Malla instalada (m2)',
                               style: TextStyle(fontWeight: FontWeight.bold))),
+                              
+                              DataColumn(
+                        label: Text('Material',
+                            style: TextStyle(fontWeight: FontWeight.bold))),
+                    DataColumn(
+                        label: Text('Detalles',
+                            style: TextStyle(fontWeight: FontWeight.bold))),
+                              
                               DataColumn(
                           label: Text('Acciones',
                               style: TextStyle(fontWeight: FontWeight.bold))),
@@ -597,14 +663,14 @@ void _deleteRecord(int recordId) async {
                             Map<String, dynamic> row = entry.value;
                             return DataRow(cells: [
                               DataCell(Text(index.toString())),
-                              _editableCell(row, 'codigo_actividad'),
                               _editableCell(row, 'nivel'),
                               _editableCell(row, 'labor'),
-                              _editableCell(row, 'seccion_de_labor'),
-                              _editableCell(row, 'nbroca'),
                               _editableCell(row, 'ntaladro'),
                               _editableCell(row, 'longitud_perforacion'),
+                              _editableCell(row, 'metros_perforados'),
                               _editableCell(row, 'malla_instalada'),
+                              _editableCell(row, 'material'),
+                              _editableCell(row, 'detalles_trabajo_realizado'),
                               DataCell(Row(
                                 children: [
                                   IconButton(
@@ -652,23 +718,41 @@ void _deleteRecord(int recordId) async {
                 ),
               ),
             ),
-            SizedBox(height: 10),
-            ElevatedButton(
-              onPressed: _saveData,
-              child: Text("Guardar datos"),
-              style: ElevatedButton.styleFrom(
-                padding: EdgeInsets.symmetric(horizontal: 40, vertical: 15),
-                textStyle: TextStyle(fontSize: 16),
-              ),
-            ),
+            SizedBox(height: 16),
+Center(
+  child: SizedBox(
+    width: 200, // Ancho fijo que puedes ajustar
+    child: ElevatedButton(
+      onPressed: () {
+        showPdfDialog(
+          context,
+          widget.tipoOperacion,
+          tipoLabor: widget.tipo_labor,
+          labor: widget.labor,
+          ala: widget.ala,
+        );
+      },
+      style: ElevatedButton.styleFrom(
+        backgroundColor: Color(0xFF21899C),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+        ),
+        padding: EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+        textStyle: TextStyle(fontSize: 16),
+      ),
+      child: Text("Ver PDF", style: TextStyle(color: Colors.white)),
+    ),
+  ),
+),
+            SizedBox(height: 8),
           ],
         ),
       ),
       floatingActionButton: FloatingActionButton(
-  onPressed: widget.estado == "cerrado" ? null : _addNewRecord,
-  child: Icon(Icons.add),
-  backgroundColor: widget.estado == "cerrado" ? Colors.grey : Colors.blue,
-),
+        onPressed: widget.estado == "cerrado" ? null : _addNewRecord,
+        child: Icon(Icons.add),
+        backgroundColor: widget.estado == "cerrado" ? Colors.grey : Colors.blue,
+      ),
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
     );
   }

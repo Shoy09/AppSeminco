@@ -3,15 +3,20 @@ import 'package:app_seminco/database/database_helper_mina_2.dart';
 import 'package:app_seminco/mina%201/screens/Dash/reporte_sreen.dart';
 import 'package:app_seminco/mina%201/services/Enviar%20nube/ExploracionService_service.dart';
 import 'package:app_seminco/mina%201/services/api_service.dart';
+import 'package:app_seminco/mina%201/services/conexion%20I/ConnectivityService.dart';
+import 'package:app_seminco/mina%201/services/conexion%20I/background_sync_service.dart';
 import 'package:app_seminco/mina%201/services/ingreso%20nube/ApiServiceExploracion.dart';
 import 'package:app_seminco/mina%201/services/user_service.dart';
 import 'package:app_seminco/mina%202/screens/Dash/reporte_sreen.dart';
 import 'package:app_seminco/mina%202/services/api_service.dart';
+import 'package:app_seminco/mina%202/services/conexion%20I/ConnectivityService.dart';
+import 'package:app_seminco/mina%202/services/conexion%20I/background_sync_service.dart';
 import 'package:app_seminco/mina%202/services/ingreso%20nube/ApiServiceExploracion.dart';
 import 'package:app_seminco/mina%202/services/user_service.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_svg/svg.dart';
+import 'package:provider/provider.dart';
 
 class SignInFive extends StatefulWidget {
   const SignInFive({Key? key}) : super(key: key);
@@ -34,24 +39,6 @@ String? selectedMina;
     });
   }
 
-Future<void> fetchExploracionesMina1(String token) async {
-  try {
-    final apiService = ApiServiceExploracion_Mina1();
-    await apiService.fetchExploracionesMina1(token);
-  } catch (e) {
-    throw Exception('Error al obtener exploraciones: $e');
-  }
-}
-
-Future<void> fetchExploracionesMina2(String token) async {
-  try {
-    final apiService = ApiServiceExploracion_Mina2();
-    await apiService.fetchExploracionesMina2(token);
-  } catch (e) {
-    throw Exception('Error al obtener exploraciones: $e');
-  }
-}
-
 Future<void> handleLogin() async {
   setState(() {
     isLoading = true;
@@ -61,93 +48,158 @@ Future<void> handleLogin() async {
   final pass = passController.text;
 
   try {
-    // 👉 Intentar login online en Mina 1
-    final apiServiceMina1 = ApiService_Mina1();
-    final userServiceMina1 = UserService_mina1();
-    final tokenMina1 = await apiServiceMina1.login(dni, pass);
-
-    final userDataMina1 = await userServiceMina1.getUserProfile(tokenMina1);
-
-    await DatabaseHelper_Mina1().setCurrentUserDni(dni);
-    await DatabaseHelper_Mina1().saveUser(userDataMina1, pass);
-
-    await fetchExploracionesMina1(tokenMina1);
-
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (context) => ReporteScreenMina1(token: tokenMina1, dni: dni)),
-    );
-    return; // 👈 Terminar si fue exitoso
-
-  } catch (e1) {
-    print("Login online Mina 1 fallido: $e1");
-
-    // 👉 Intentar login online en Mina 2
+    // 1. Intento de login online en Mina 1
     try {
-      final apiServiceMina2 = ApiService_Mina2();
-      final userServiceMina2 = UserService_mina2();
-      final tokenMina2 = await apiServiceMina2.login(dni, pass);
+      final tokenMina1 = await ApiService_Mina1().login(dni, pass);
+      final userDataMina1 = await UserService_mina1().getUserProfile(tokenMina1);
 
-      final userDataMina2 = await userServiceMina2.getUserProfile(tokenMina2);
+      // Configurar base de datos MINA 1 primero
+      await DatabaseHelper_Mina1().setCurrentUserDni(dni);
+      await DatabaseHelper_Mina1().saveUser(userDataMina1, pass);
 
+//       final connectivityService = ConnectivityService();
+// final backgroundSyncService = BackgroundSyncService(
+//   connectivityService: connectivityService,
+// );
+
+Navigator.pushReplacement(
+  context,
+  MaterialPageRoute(
+    builder: (context) => MultiProvider(
+      providers: [
+        // ChangeNotifierProvider(create: (_) => connectivityService),
+        // Provider.value(value: backgroundSyncService),
+      ],
+      child: ReporteScreenMina1(
+        token: tokenMina1,
+        dni: dni,
+      ),
+    ),
+  ),
+);
+
+      return;
+    } catch (e1) {
+      print("Login online Mina 1 fallido: $e1");
+    }
+
+    // 2. Intento de login online en Mina 2
+    try {
+      final tokenMina2 = await ApiService_Mina2().login(dni, pass);
+      final userDataMina2 = await UserService_mina2().getUserProfile(tokenMina2);
+
+      // Configurar base de datos MINA 2
       await DatabaseHelper_Mina2().setCurrentUserDni(dni);
       await DatabaseHelper_Mina2().saveUser(userDataMina2, pass);
 
-      await fetchExploracionesMina2(tokenMina2);
-
+// final connectivityServiceMina2 = ConnectivityServiceMina2();
+// final backgroundSyncServiceMina2 = BackgroundSyncServiceMina2(
+//   connectivityServiceMina2: connectivityServiceMina2,
+// );
       Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => ReporteScreenMina1(token: tokenMina2, dni: dni)),
-      );
+  context,
+  MaterialPageRoute(
+    builder: (context) => MultiProvider(
+      providers: [
+        // ChangeNotifierProvider(create: (_) => connectivityServiceMina2),
+        // Provider.value(value: backgroundSyncServiceMina2),
+      ],
+      child: ReporteScreenMina2(
+        token: tokenMina2,
+        dni: dni,
+      ),
+    ),
+  ),
+);
       return;
-
     } catch (e2) {
       print("Login online Mina 2 fallido: $e2");
-
-      // 👉 Intentar login offline Mina 1
-      await DatabaseHelper_Mina1().setCurrentUserDni(dni);
-      bool offlineLoginMina1 = await DatabaseHelper_Mina1().loginOffline(dni, pass);
-
-      if (offlineLoginMina1) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => ReporteScreenMina1(token: "offline", dni: dni)),
-        );
-        return;
-      }
-
-      // 👉 Intentar login offline Mina 2
-      await DatabaseHelper_Mina2().setCurrentUserDni(dni);
-      bool offlineLoginMina2 = await DatabaseHelper_Mina2().loginOffline(dni, pass);
-
-      if (offlineLoginMina2) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => ReporteScreenMina2(token: "offline", dni: dni)),
-        );
-        return;
-      }
-
-      // ❌ Si todo falla
-      showDialog(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text("Error"),
-          content: const Text("Inicio de sesión fallido. Verifique sus credenciales por favor."),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text("Cerrar"),
-            ),
-          ],
-        ),
-      );
     }
+
+    // 3. Intento de login offline en ambas minas
+    try {
+      // Mina 1 offline
+      await DatabaseHelper_Mina1().setCurrentUserDni(dni);
+      final offlineLoginMina1 = await DatabaseHelper_Mina1().loginOffline(dni, pass);
+      
+      if (offlineLoginMina1) {
+//               final connectivityService = ConnectivityService();
+// final backgroundSyncService = BackgroundSyncService(
+//   connectivityService: connectivityService,
+// );
+
+Navigator.pushReplacement(
+  context,
+  MaterialPageRoute(
+    builder: (context) => MultiProvider(
+      providers: [
+        // ChangeNotifierProvider(create: (_) => connectivityService),
+        // Provider.value(value: backgroundSyncService),
+      ],
+      child: ReporteScreenMina1(
+        token: "offline",
+        dni: dni,
+      ),
+    ),
+  ),
+);
+        return;
+      }
+
+      // Mina 2 offline
+      await DatabaseHelper_Mina2().setCurrentUserDni(dni);
+      final offlineLoginMina2 = await DatabaseHelper_Mina2().loginOffline(dni, pass);
+      
+      if (offlineLoginMina2) {
+//        final connectivityServiceMina2 = ConnectivityServiceMina2();
+// final backgroundSyncServiceMina2 = BackgroundSyncServiceMina2(
+//   connectivityServiceMina2: connectivityServiceMina2,
+// );
+      Navigator.pushReplacement(
+  context,
+  MaterialPageRoute(
+    builder: (context) => MultiProvider(
+      providers: [
+        // ChangeNotifierProvider(create: (_) => connectivityServiceMina2),
+        // Provider.value(value: backgroundSyncServiceMina2),
+      ],
+      child: ReporteScreenMina2(
+        token: "offline",
+        dni: dni,
+      ),
+    ),
+  ),
+);
+        return;
+      }
+    } catch (offlineError) {
+      print("Error en login offline: $offlineError");
+    }
+
+    // Si todo falla
+    _showLoginError();
   } finally {
     setState(() {
       isLoading = false;
     });
   }
+}
+
+
+void _showLoginError() {
+  showDialog(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: const Text("Error"),
+      content: const Text("Inicio de sesión fallido. Verifique sus credenciales por favor."),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text("Cerrar"),
+        ),
+      ],
+    ),
+  );
 }
 
 
@@ -221,41 +273,7 @@ Future<void> handleLogin() async {
                               color: Colors.white,
                             ),
                           ),
-                        ),
-
-                        Expanded(
-  flex: 1, // Ajusta el flex según necesidad
-  child: DropdownButtonFormField<String>(
-    decoration: InputDecoration(
-      labelText: 'Seleccione mina',
-      labelStyle: GoogleFonts.inter(color: Colors.white70),
-      enabledBorder: OutlineInputBorder(
-        borderSide: BorderSide(color: Colors.white54),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      filled: true,
-      fillColor: Colors.white.withOpacity(0.1),
-    ),
-    style: GoogleFonts.inter(color: Colors.white),
-    dropdownColor: Colors.grey[850], // Fondo del menú desplegable
-    value: selectedMina, // Variable donde guardas la selección
-    items: [
-      'Mina 1',
-      'Mina 2',
-      'Mina 3',
-    ].map((mina) {
-      return DropdownMenuItem<String>(
-        value: mina,
-        child: Text(mina),
-      );
-    }).toList(),
-    onChanged: (newValue) {
-      setState(() {
-        selectedMina = newValue!;
-      });
-    },
-  ),
-),
+                        ),     
 
                         //Dni and password TextField here
                         Expanded(

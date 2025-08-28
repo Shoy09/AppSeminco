@@ -6,6 +6,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 class RegistroExplosivoPagehorizontal extends StatefulWidget {
+  final String zona;
+
+  const RegistroExplosivoPagehorizontal({Key? key, required this.zona})
+      : super(key: key);
+
+
   @override
   _RegistroExplosivoPageHorizontalState createState() =>
       _RegistroExplosivoPageHorizontalState();
@@ -13,8 +19,6 @@ class RegistroExplosivoPagehorizontal extends StatefulWidget {
 
 class _RegistroExplosivoPageHorizontalState
     extends State<RegistroExplosivoPagehorizontal> {
-  final TextEditingController mesController = TextEditingController();
-  final TextEditingController semanaController = TextEditingController();
   List<Map<String, dynamic>> exploraciones = [];
   List<Map<String, dynamic>> exploracionesFiltradas = [];
   List<Map<String, dynamic>> _exploraciones = [];
@@ -24,46 +28,19 @@ class _RegistroExplosivoPageHorizontalState
   Map<String, TextEditingController> controllers = {};
   List<Explosivo> _explosivos = [];
   Map<int, Map<String, dynamic>> registrosEditados = {};
-
+  final TextEditingController fechaController = TextEditingController();
+  final TextEditingController turnoController = TextEditingController();
+  List<TipoPerforacion> perforacionesHorizontales = [];
   // Función para calcular el número de semana ISO
-  int _calcularSemanaISO(DateTime date) {
-    final dayOfYear = _diaDelAnio(date);
-    final woy = ((dayOfYear - date.weekday + 10) / 7).floor();
-
-    if (woy < 1) {
-      return _calcularSemanaISO(DateTime(date.year - 1, 12, 31));
-    } else if (woy > 52 && DateTime(date.year, 12, 31).weekday < 4) {
-      return 1;
-    }
-    return woy;
-  }
 
   int _diaDelAnio(DateTime date) {
     final startOfYear = DateTime(date.year, 1, 1);
     return date.difference(startOfYear).inDays + 1;
   }
 
-  final List<String> meses = [
-    'Enero',
-    'Febrero',
-    'Marzo',
-    'Abril',
-    'Mayo',
-    'Junio',
-    'Julio',
-    'Agosto',
-    'Septiembre',
-    'Octubre',
-    'Noviembre',
-    'Diciembre'
-  ];
-
   @override
   void initState() {
     super.initState();
-    final now = DateTime.now();
-    mesController.text = meses[now.month - 1];
-    semanaController.text = _calcularSemanaISO(now).toString();
     _getTiposPerforacion();
     _cargarExploraciones();
     _cargarDatosExplosivos();
@@ -81,7 +58,7 @@ class _RegistroExplosivoPageHorizontalState
   Future<void> _getTiposPerforacion() async {
     try {
       final dbHelper = DatabaseHelper_Mina1();
-      _tiposPerforacion = await dbHelper.getTiposPerforacionhorizontal();
+      _tiposPerforacion = await dbHelper.getTiposPerforacionhorizontalfil();
 
       // Después de obtener los tipos, aplicar el filtro si ya tenemos las exploraciones
       if (_exploracionesSucio.isNotEmpty) {
@@ -95,7 +72,7 @@ class _RegistroExplosivoPageHorizontalState
   Future<void> _cargarExploraciones() async {
     try {
       final dbHelper = DatabaseHelper_Mina1();
-      final exploraciones = await dbHelper.obtenerExploracionesCompletas();
+      final exploraciones = await dbHelper.obtenerExploracionesCompletasPorZona(widget.zona);
 
       setState(() {
         _exploracionesSucio = exploraciones;
@@ -187,22 +164,6 @@ class _RegistroExplosivoPageHorizontalState
     });
   }
 
-  void borrarCampos() {
-    mesController.clear();
-    semanaController.clear();
-    setState(() {});
-  }
-
-  void buscarDatos() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-            'Filtrando datos para ${mesController.text}, semana ${semanaController.text}'),
-        duration: Duration(seconds: 2),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -211,16 +172,16 @@ class _RegistroExplosivoPageHorizontalState
         backgroundColor: Color(0xFF21899C),
         actions: [
           IconButton(
-  icon: Icon(Icons.list),
-  onPressed: () async {
-    await Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => ListaPantalla()),
-    );
-    // Esta línea se ejecutará cuando regreses de ListaPantalla
-    _recargarDatos();
-  },
-),
+            icon: Icon(Icons.list),
+            onPressed: () async {
+              await Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => ListaPantalla()),
+              );
+              // Esta línea se ejecutará cuando regreses de ListaPantalla
+              _recargarDatos();
+            },
+          ),
         ],
       ),
       body: Padding(
@@ -230,51 +191,65 @@ class _RegistroExplosivoPageHorizontalState
             // Filtros
             Row(
               children: [
+                // Selector de fecha
                 Flexible(
                   flex: 3,
-                  child: DropdownButtonFormField<String>(
-                    value:
-                        mesController.text.isEmpty ? null : mesController.text,
+                  child: TextField(
+                    controller: fechaController,
+                    readOnly: true,
                     decoration: InputDecoration(
-                      labelText: 'Mes',
+                      labelText: 'Fecha',
                       border: OutlineInputBorder(),
                       isDense: true,
                     ),
-                    items: meses.map((String mes) {
+                    onTap: () async {
+                      DateTime? pickedDate = await showDatePicker(
+                        context: context,
+                        initialDate: DateTime.now(),
+                        firstDate: DateTime(2000),
+                        lastDate: DateTime(2100),
+                      );
+                      if (pickedDate != null) {
+                        setState(() {
+                          fechaController.text =
+                              "${pickedDate.year}-${pickedDate.month.toString().padLeft(2, '0')}-${pickedDate.day.toString().padLeft(2, '0')}";
+                        });
+                      }
+                    },
+                  ),
+                ),
+                SizedBox(width: 8),
+                // Dropdown para turno
+                Flexible(
+                  flex: 2,
+                  child: DropdownButtonFormField<String>(
+                    value: turnoController.text.isEmpty
+                        ? null
+                        : turnoController.text,
+                    decoration: InputDecoration(
+                      labelText: 'Turno',
+                      border: OutlineInputBorder(),
+                      isDense: true,
+                    ),
+                    items: ['Día', 'Noche'].map((String turno) {
                       return DropdownMenuItem<String>(
-                        value: mes,
-                        child: Text(mes),
+                        value: turno,
+                        child: Text(turno),
                       );
                     }).toList(),
                     onChanged: (String? newValue) {
                       setState(() {
-                        mesController.text = newValue ?? '';
+                        turnoController.text = newValue ?? '';
                       });
                     },
                   ),
                 ),
                 SizedBox(width: 8),
-                Flexible(
-                  flex: 1,
-                  child: TextField(
-                    controller: semanaController,
-                    keyboardType: TextInputType.number,
-                    inputFormatters: [
-                      FilteringTextInputFormatter.digitsOnly,
-                      LengthLimitingTextInputFormatter(2),
-                    ],
-                    decoration: InputDecoration(
-                      labelText: 'Semana',
-                      border: OutlineInputBorder(),
-                      isDense: true,
-                    ),
-                  ),
-                ),
-                SizedBox(width: 8),
+                // Botón Buscar
                 ElevatedButton.icon(
                   icon: Icon(Icons.search, size: 20),
                   label: Text('Buscar'),
-                  onPressed: buscarDatos,
+                  onPressed: () {},
                   style: ElevatedButton.styleFrom(
                     padding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                   ),
@@ -315,17 +290,30 @@ class _RegistroExplosivoPageHorizontalState
                                     color: Colors.grey,
                                   ),
                                   columnWidths: const {
-                                    0: FlexColumnWidth(1.2),
-                                    1: FlexColumnWidth(1.2),
-                                    2: FlexColumnWidth(1.2),
-                                    3: FlexColumnWidth(1.3),
-                                    4: FlexColumnWidth(1.2),
-                                    5: FlexColumnWidth(1.5),
-                                    6: FlexColumnWidth(1.2),
-                                    7: FlexColumnWidth(1.5),
-                                    8: FlexColumnWidth(1.2),
-                                    9: FlexColumnWidth(1.0), // ANCHO
-                                    10: FlexColumnWidth(1.0), // ALTO
+                                    0: FlexColumnWidth(
+                                        0.8), // Nueva columna para el número de fila
+                                    1: FlexColumnWidth(
+                                        1.2), // FECHA (antes era 0)
+                                    2: FlexColumnWidth(
+                                        1.2), // TURNO (antes era 1)
+                                    3: FlexColumnWidth(
+                                        1.2), // EMPRESA (antes era 2)
+                                    4: FlexColumnWidth(
+                                        1.3), // ZONA (antes era 3)
+                                    5: FlexColumnWidth(
+                                        1.2), // LABOR (antes era 4)
+                                    6: FlexColumnWidth(
+                                        1.5), // VETA (antes era 5)
+                                    7: FlexColumnWidth(
+                                        1.2), // TIPO PERFORACIÓN (antes era 6)
+                                    8: FlexColumnWidth(
+                                        1.5), // KG EXPLOSIVOS (antes era 7)
+                                    9: FlexColumnWidth(
+                                        1.2), // AVANCE PROGRAMADO (antes era 8)
+                                    10: FlexColumnWidth(
+                                        1.0), // ANCHO (antes era 9)
+                                    11: FlexColumnWidth(
+                                        1.0), // ALTO (antes era 10)
                                   },
                                   children: [
                                     // Encabezados de tabla
@@ -336,6 +324,7 @@ class _RegistroExplosivoPageHorizontalState
                                             top: Radius.circular(8)),
                                       ),
                                       children: [
+                                        tableCellBold(context, 'N°'),
                                         tableCellBold(context, 'FECHA'),
                                         tableCellBold(context, 'TURNO'),
                                         tableCellBold(context, 'EMPRESA'),
@@ -346,9 +335,9 @@ class _RegistroExplosivoPageHorizontalState
                                             context, 'TIPO PERFORACIÓN'),
                                         tableCellBold(context, 'KG EXPLOSIVOS'),
                                         tableCellBold(
-                                            context, 'AVANCE PROGRAMADO'),
-                                        tableCellBold(context, 'ANCHO'),
-                                        tableCellBold(context, 'ALTO'),
+                                            context, 'AVANCE PROGRAMADO (m)'),
+                                        tableCellBold(context, 'ANCHO (m)'),
+                                        tableCellBold(context, 'ALTO (m)'),
                                       ],
                                     ),
 
@@ -357,6 +346,7 @@ class _RegistroExplosivoPageHorizontalState
                                         i < _exploraciones.length;
                                         i++)
                                       TableRow(children: [
+                                        tableCell((i + 1).toString()),
                                         tableCell(_exploraciones[i]['fecha']
                                                 ?.toString() ??
                                             ''),
@@ -430,7 +420,7 @@ class _RegistroExplosivoPageHorizontalState
                                             horizontal: 16, vertical: 12),
                                       ),
                                       icon: Icon(Icons.delete, size: 18),
-                                      onPressed: borrarCampos,
+                                      onPressed: () {},
                                       label: Text('BORRAR'),
                                     ),
                                     SizedBox(width: 10),
@@ -465,49 +455,52 @@ class _RegistroExplosivoPageHorizontalState
     );
   }
 
-Future<void> insertarYActualizarMedicionesHorizontal() async {
-  List<Map<String, dynamic>> registros = obtenerDatosEditadosFormateados();
+  Future<void> insertarYActualizarMedicionesHorizontal() async {
+    List<Map<String, dynamic>> registros = obtenerDatosEditadosFormateados();
 
-  if (registros.isEmpty) {
-    print("No hay registros editados para insertar.");
-    return;
-  }
+    if (registros.isEmpty) {
+      print("No hay registros editados para insertar.");
+      return;
+    }
 
-  final dbHelper = DatabaseHelper_Mina1();
-  List<int> idsParaActualizar = [];
+    final dbHelper = DatabaseHelper_Mina1();
+    List<int> idsParaActualizar = [];
 
-  try {
-    for (var registro in registros) {
-      int? idExplosivo = registro['id_explosivo'];
-      if (idExplosivo == null) {
-        print("⚠️ Registro sin id_explosivo. Se omite: $registro");
-        continue;
+    try {
+      for (var registro in registros) {
+        int? idExplosivo = registro['id_explosivo'];
+        if (idExplosivo == null) {
+          print("⚠️ Registro sin id_explosivo. Se omite: $registro");
+          continue;
+        }
+
+        int idInsertado = await dbHelper.insertarMedicionHorizontal(registro);
+        print(
+            "Registro insertado con id: $idInsertado, id_explosivo original: $idExplosivo");
+        idsParaActualizar.add(idExplosivo);
       }
 
-      int idInsertado = await dbHelper.insertarMedicionHorizontal(registro);
-      print("Registro insertado con id: $idInsertado, id_explosivo original: $idExplosivo");
-      idsParaActualizar.add(idExplosivo);
-    }
+      if (idsParaActualizar.isNotEmpty) {
+        await dbHelper.actualizarMedicionEXplosivo(idsParaActualizar);
+        print(
+            "Registros actualizados en nube_Datos_trabajo_exploraciones con medicion=1");
 
-    if (idsParaActualizar.isNotEmpty) {
-      await dbHelper.actualizarMedicionEXplosivo(idsParaActualizar);
-      print("Registros actualizados en nube_Datos_trabajo_exploraciones con medicion=1");
-      
-      // Mostrar mensaje de éxito
+        // Mostrar mensaje de éxito
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Datos guardados exitosamente')),
+        );
+
+        // Recargar los datos
+        await _recargarDatos();
+      }
+    } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Datos guardados exitosamente')),
+        SnackBar(content: Text('Error al guardar datos: $e')),
       );
-      
-      // Recargar los datos
-      await _recargarDatos();
+      print("Error al insertar/actualizar mediciones: $e");
     }
-  } catch (e) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Error al guardar datos: $e')),
-    );
-    print("Error al insertar/actualizar mediciones: $e");
   }
-}
+
   List<Map<String, dynamic>> obtenerDatosEditadosFormateados() {
     List<Map<String, dynamic>> listaDatos = [];
 
@@ -539,38 +532,35 @@ Future<void> insertarYActualizarMedicionesHorizontal() async {
     return listaDatos;
   }
 
+  Future<void> _recargarDatos() async {
+    setState(() {
+      _isLoading = true;
+    });
 
+    // Limpia los datos existentes y los controladores
+    _limpiarControladores();
+    _exploracionesSucio = [];
+    _exploraciones = [];
+    registrosEditados = {};
 
-Future<void> _recargarDatos() async {
-  setState(() {
-    _isLoading = true;
-  });
-  
-  // Limpia los datos existentes y los controladores
-  _limpiarControladores();
-  _exploracionesSucio = [];
-  _exploraciones = [];
-  registrosEditados = {};
-  
-  // Vuelve a cargar todos los datos
-  await _getTiposPerforacion();
-  await _cargarExploraciones();
-  _cargarDatosExplosivos();
-  
-  setState(() {
-    _isLoading = false;
-  });
-}
+    // Vuelve a cargar todos los datos
+    await _getTiposPerforacion();
+    await _cargarExploraciones();
+    _cargarDatosExplosivos();
 
-void _limpiarControladores() {
-  // Disponse de todos los controladores existentes
-  controllers.forEach((key, controller) {
-    controller.dispose();
-  });
-  // Limpia el mapa de controladores
-  controllers.clear();
-}
+    setState(() {
+      _isLoading = false;
+    });
+  }
 
+  void _limpiarControladores() {
+    // Disponse de todos los controladores existentes
+    controllers.forEach((key, controller) {
+      controller.dispose();
+    });
+    // Limpia el mapa de controladores
+    controllers.clear();
+  }
 
   Widget tableCellMulti(List<String> texts, {bool isBold = false}) {
     return Padding(
@@ -639,8 +629,6 @@ void _limpiarControladores() {
           Map<String, dynamic>.from(_exploraciones[index]);
     });
   }
-
-
 
   Widget tableCell(String text) {
     return Padding(

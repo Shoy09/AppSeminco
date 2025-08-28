@@ -1,4 +1,5 @@
 import 'dart:math';
+import 'package:app_seminco/mina%202/screens/Largo/FormularioPerforacionScreen.dart';
 import 'package:flutter/material.dart';
 import 'package:app_seminco/database/database_helper_mina_2.dart';
 import 'package:app_seminco/mina%202/models/PlanMetraje.dart';
@@ -6,13 +7,17 @@ import 'package:app_seminco/mina%202/models/TipoPerforacion.dart';
 
 class RegistroPerforacionScreen extends StatefulWidget {
   final VoidCallback onDataInserted;
-  final int? operacionId; // Agregar operacionId como parámetro opcional
+  final int? estadoId; // Agregar estadoId como parámetro opcional
   final String tipoOperacion;
+  final String estado;
+  final int operacionId;
   const RegistroPerforacionScreen({
     Key? key,
     required this.tipoOperacion,
     required this.onDataInserted,
-    this.operacionId, // Inicializar en el constructor
+    required this.estado,
+  required this.operacionId,
+    this.estadoId, // Inicializar en el constructor
   }) : super(key: key);
 
   @override
@@ -21,6 +26,7 @@ class RegistroPerforacionScreen extends StatefulWidget {
 }
 
 class _RegistroPerforacionScreenState extends State<RegistroPerforacionScreen> {
+  int? _perforacionId;
   String? _selectedZona;
   String? _selectedTipoLabor;
   String? _selectedLabor;
@@ -47,9 +53,34 @@ class _RegistroPerforacionScreenState extends State<RegistroPerforacionScreen> {
   @override
   void initState() {
     super.initState();
-    _getTiposPerforacion(widget.tipoOperacion);
-    _getPlanesMen();
+  _getTiposPerforacion(widget.tipoOperacion);
+  _getPlanesMen();
+  _initializeData();
   }
+
+Future<void> _initializeData() async {
+  final dbHelper = DatabaseHelper_Mina2();
+  try {
+    Map<String, dynamic>? perforacion = await dbHelper.getPerforacionTaladroLargoByEstadoId(widget.estadoId!);
+    
+    if (perforacion != null) {
+       _perforacionId = perforacion['id']; 
+       print("id perforacion: $_perforacionId");
+      setState(() {
+        // Solo asigna el valor si está en la lista actual
+        _selectedZona = _zonas.contains(perforacion['zona']) ? perforacion['zona'] : null;
+        _selectedTipoLabor = _filteredTiposLabor.contains(perforacion['tipo_labor']) ? perforacion['tipo_labor'] : null;
+        _selectedLabor = _filteredLabores.contains(perforacion['labor']) ? perforacion['labor'] : null;
+        _selectedAla = _filteredAlas.contains(perforacion['ala']) ? perforacion['ala'] : null;
+        _selectedVeta = _filteredVetas.contains(perforacion['veta']) ? perforacion['veta'] : null;
+        _selectedNivel = _filteredNiveles.contains(perforacion['nivel']) ? perforacion['nivel'] : null;
+        _selectedTipoPerforacion = _tiposPerforacion.contains(perforacion['tipo_perforacion']) ? perforacion['tipo_perforacion'] : null;
+      });
+    }
+  } catch (e) {
+    print("Error en _initializeData: $e");
+  }
+}
 
   Future<void> _getTiposPerforacion(String tipoOperacion) async {
     try {
@@ -83,64 +114,107 @@ class _RegistroPerforacionScreenState extends State<RegistroPerforacionScreen> {
     }
   }
 
-  void _guardarPerforacion() async {
-    List<String> camposFaltantes = [];
+void _guardarPerforacion() async {
+  // Validaciones (se mantienen igual que en tu código)
+  List<String> camposFaltantes = [];
+  if (_selectedZona == null) camposFaltantes.add("Zona");
+  if (_selectedTipoLabor == null) camposFaltantes.add("Tipo de Labor");
+  if (_selectedLabor == null) camposFaltantes.add("Labor");
+  if (_selectedVeta == null) camposFaltantes.add("Veta");
+  if (_selectedNivel == null) camposFaltantes.add("Nivel");
+  if (_selectedTipoPerforacion == null) camposFaltantes.add("Tipo de Perforación");
 
-    if (_selectedZona == null) camposFaltantes.add("Zona");
-    if (_selectedTipoLabor == null) camposFaltantes.add("Tipo de Labor");
-    if (_selectedLabor == null) camposFaltantes.add("Labor");
-
-    if (_selectedVeta == null) camposFaltantes.add("Veta");
-    if (_selectedNivel == null) camposFaltantes.add("Nivel");
-    if (_selectedTipoPerforacion == null)
-      camposFaltantes.add("Tipo de Perforación");
-
-    if (camposFaltantes.isNotEmpty) {
-      String mensajeError = "Falta seleccionar: ${camposFaltantes.join(", ")}";
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(mensajeError),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return;
-    }
-
-    if (widget.operacionId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text("No se encontró el ID de la operación."),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return;
-    }
-
-    final dbHelper = DatabaseHelper_Mina2();
-    int nuevoId = await dbHelper.insertarPerforacionTaladroLargo(
-      zona: _selectedZona!,
-      tipoLabor: _selectedTipoLabor!,
-      labor: _selectedLabor!,
-      ala: _selectedAla ?? '',
-      veta: _selectedVeta!,
-      nivel: _selectedNivel!,
-      tipoPerforacion: _selectedTipoPerforacion!,
-      operacionId: widget.operacionId!,
-    );
-
+  if (camposFaltantes.isNotEmpty) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text("Registro guardado con ID: $nuevoId"),
-        backgroundColor: Colors.green,
+        content: Text("Falta seleccionar: ${camposFaltantes.join(", ")}"),
+        backgroundColor: Colors.red,
       ),
     );
-
-    // Llamar al callback para actualizar datos y cerrar el diálogo
-    widget.onDataInserted();
-    Navigator.pop(context); // 🔹 Cierra el diálogo
+    return;
   }
 
+  if (widget.estadoId == null) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text("No se encontró el ID de la operación."),
+        backgroundColor: Colors.red,
+      ),
+    );
+    return;
+  }
+
+  final dbHelper = DatabaseHelper_Mina2();
+  try {
+    if (_perforacionId != null) {
+      // ACTUALIZAR registro existente
+      await dbHelper.actualizarPerforacionTaladroLargo(
+        id: _perforacionId!,
+        zona: _selectedZona!,
+        tipoLabor: _selectedTipoLabor!,
+        labor: _selectedLabor!,
+        ala: _selectedAla ?? '',
+        veta: _selectedVeta!,
+        nivel: _selectedNivel!,
+        tipoPerforacion: _selectedTipoPerforacion!,
+      );
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Registro actualizado correctamente"),
+          backgroundColor: Colors.green,
+        ),
+      );
+      await _initializeData();
+    } else {
+      // INSERTAR nuevo registro
+      int nuevoId = await dbHelper.insertarPerforacionTaladroLargo(
+        zona: _selectedZona!,
+        tipoLabor: _selectedTipoLabor!,
+        labor: _selectedLabor!,
+        ala: _selectedAla ?? '',
+        veta: _selectedVeta!,
+        nivel: _selectedNivel!,
+        tipoPerforacion: _selectedTipoPerforacion!,
+        estadoId: widget.estadoId!,
+      );
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Nuevo registro guardado con ID: $nuevoId"),
+          backgroundColor: Colors.green,
+        ),
+      );
+
+      await _initializeData(); // Refrescar para tener datos actualizados
+Navigator.of(context).pop();
+      // 🔵 Redirigir a FormularioScreen
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => FormularioScreen(
+            id: nuevoId,
+            estado: widget.estado,
+            tipoOperacion: widget.tipoOperacion,
+            operacionId: widget.operacionId,
+            tipo_labor: _selectedTipoLabor ?? 'Sin tipo de labor',
+            labor: _selectedLabor ?? 'Sin labor',
+            nivel: _selectedNivel ?? 'Sin nivel',
+            ala: _selectedAla ?? 'null',
+          ),
+        ),
+      );
+    }
+
+  } catch (e) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text("Error al guardar: ${e.toString()}"),
+        backgroundColor: Colors.red,
+      ),
+    );
+  }
+}
   Future<void> _getPlanesMen() async {
     try {
       final dbHelper = DatabaseHelper_Mina2();
@@ -546,11 +620,72 @@ class _RegistroPerforacionScreenState extends State<RegistroPerforacionScreen> {
                 ),
               ],
             ),
-            const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: _guardarPerforacion,
-              child: const Text('Guardar'),
+            const SizedBox(height: 30),
+
+Column(
+  crossAxisAlignment: CrossAxisAlignment.stretch,
+  children: [
+    // 🔵 Botón Guardar (solo)
+    ElevatedButton(
+      onPressed: _guardarPerforacion,
+      child: const Text('Guardar'),
+    ),
+
+    const SizedBox(height: 10), // Espacio vertical entre botones
+
+    // 🔵 Fila con Registro y Cerrar
+    Row(
+      children: [
+        // 🔹 Botón Registro
+        Expanded(
+          child: Tooltip(
+            message: _perforacionId == null ? 'Primero debe guardar un registro' : '',
+            child: ElevatedButton(
+              onPressed: _perforacionId != null
+                  ? () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => FormularioScreen(
+                            id: _perforacionId!,
+                            estado: widget.estado,
+                            tipoOperacion: widget.tipoOperacion,
+                            nivel: _selectedNivel ?? 'Sin nivel',
+                            labor: _selectedLabor ?? 'Sin labor',
+                            operacionId: widget.operacionId,
+                            ala: _selectedAla ?? 'null',
+                            tipo_labor: _selectedTipoLabor ?? 'Sin tipo de labor',
+                          ),
+                        ),
+                      );
+                    }
+                  : null,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _perforacionId != null ? null : Colors.grey[300],
+              ),
+              child: const Text('Registro'),
             ),
+          ),
+        ),
+
+        const SizedBox(width: 10),
+
+        // 🔴 Botón Cerrar
+        Expanded(
+          child: ElevatedButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+            },
+            
+            child: const Text('No aplica'),
+          ),
+        ),
+      ],
+    ),
+  ],
+)
+
+
           ],
         ),
       ),

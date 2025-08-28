@@ -7,27 +7,28 @@ import 'package:app_seminco/database/database_helper_mina_2.dart';
 class ApiServiceEstado {
   final DatabaseHelper_Mina2 _dbHelper = DatabaseHelper_Mina2();
 
-  // Método para obtener los estados desde la API, con el token en las cabeceras
+  // Obtener estados con subestados desde la API
   Future<List<EstadostBD>> fetchEstados(String token) async {
     try {
       final response = await http.get(
         Uri.parse('${ApiConfig_mina2.baseUrl}${ApiConfig_mina2.estadosEndpoint}'),
         headers: {
-          'Authorization': 'Bearer $token', // Token en la cabecera
+          'Authorization': 'Bearer $token',
         },
       );
 
       if (response.statusCode == 200) {
-        // Parsear la respuesta JSON
         final List<dynamic> responseData = json.decode(response.body);
+
         List<EstadostBD> estados = responseData
             .map((data) => EstadostBD.fromJson(data))
             .toList();
 
-        // Eliminar los datos antiguos antes de insertar los nuevos
+        // 🔹 Limpiar ambas tablas antes de insertar los nuevos datos
+        await _dbHelper.deleteAll('SubEstadoBD');
         await _dbHelper.deleteAll('EstadostBD');
 
-        // Guardar los datos en la base de datos local sin el id
+        // Guardar estados y subestados
         await saveEstadosToLocalDB(estados);
 
         return estados;
@@ -39,12 +40,23 @@ class ApiServiceEstado {
     }
   }
 
-  // Método para guardar los Estados en la base de datos local
+  // Guardar estados y sus subestados en la BD local
   Future<void> saveEstadosToLocalDB(List<EstadostBD> estados) async {
     for (var estado in estados) {
+      // Insertar Estado
       Map<String, dynamic> estadoData = estado.toMap();
-      estadoData.remove('id'); // Asegurar que no se inserte el id
-      await _dbHelper.insert('EstadostBD', estadoData);
-    } 
+      estadoData.remove('id'); // dejamos que SQLite autogenere el id
+      int estadoId = await _dbHelper.insert('EstadostBD', estadoData);
+
+      // Insertar SubEstados vinculados
+      if (estado.subEstados != null) {
+        for (var sub in estado.subEstados!) {
+          Map<String, dynamic> subData = sub.toMap();
+          subData.remove('id');
+          subData['estadoId'] = estadoId; // 🔑 clave foránea real en SQLite
+          await _dbHelper.insert('SubEstadoBD', subData);
+        }
+      }
+    }
   }
 }

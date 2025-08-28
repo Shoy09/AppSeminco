@@ -1,3 +1,4 @@
+import 'package:app_seminco/components/showPdfDialog.dart';
 import 'package:flutter/material.dart';
 import 'package:app_seminco/database/database_helper.dart';
 
@@ -9,9 +10,9 @@ class FormularioScreen extends StatefulWidget {
   final String zona;
   final String tipo_labor;
   final String labor;
+  final String ala;
   final String veta;
   final String nivel;
-  
 
   FormularioScreen(
       {required this.id,
@@ -21,9 +22,9 @@ class FormularioScreen extends StatefulWidget {
       required this.zona,
       required this.tipo_labor,
       required this.labor,
+      required this.ala,
       required this.veta,
-      required this.nivel
-      });
+      required this.nivel});
 
   @override
   _FormularioScreenState createState() => _FormularioScreenState();
@@ -44,8 +45,8 @@ class _FormularioScreenState extends State<FormularioScreen> {
   }
 
   void obtenerEstadosBD() async {
-    List<Map<String, dynamic>> estadosObtenidos =
-        await DatabaseHelper_Mina1().getEstadosBDOPERATIVO(widget.tipoOperacion);
+    List<Map<String, dynamic>> estadosObtenidos = await DatabaseHelper_Mina1()
+        .getEstadosBDOPERATIVO(widget.tipoOperacion);
 
     print(
         "Estados obtenidos de la BD para proceso '${widget.tipoOperacion}' (solo OPERATIVO): $estadosObtenidos");
@@ -73,38 +74,40 @@ class _FormularioScreenState extends State<FormularioScreen> {
     });
   }
 
-void obtenerPlanMensual() async {
-  String zona = widget.zona;
-  String tipoLabor = widget.tipo_labor;
-  String labor = widget.labor;
-  String estructuraVeta = widget.veta;
-  String nivel = widget.nivel;
+  void obtenerPlanMensual() async {
+    String zona = widget.zona;
+    String tipoLabor = widget.tipo_labor;
+    String labor = widget.labor;
+    String estructuraVeta = widget.veta;
+    String nivel = widget.nivel;
 
-  var resultado = await dbHelper.getPlanMensual(
-    zona: zona,
-    tipoLabor: tipoLabor,
-    labor: labor,
-    estructuraVeta: estructuraVeta,
-    nivel: nivel,
-  );
+    var resultado = await dbHelper.getPlanMensual(
+      zona: zona,
+      tipoLabor: tipoLabor,
+      labor: labor,
+      estructuraVeta: estructuraVeta,
+      nivel: nivel,
+    );
 
-  if (resultado != null) {
-    double ancho = resultado['ancho_m'];
-    double alto = resultado['alto_m'];
-    area = '${ancho.toStringAsFixed(2)}m x ${alto.toStringAsFixed(2)}m';  // Formateamos como texto
-    print("Dimensión: $area");
-    setState(() {});  // Refrescar UI si es necesario
-  } else {
-    print("No se encontró ningún registro.");
+    if (resultado != null) {
+      double ancho = resultado['ancho_m'];
+      double alto = resultado['alto_m'];
+      area =
+          '${ancho.toStringAsFixed(2)}m x ${alto.toStringAsFixed(2)}m'; // Formateamos como texto
+      print("Dimensión: $area");
+      setState(() {}); // Refrescar UI si es necesario
+    } else {
+      print("No se encontró ningún registro.");
+    }
   }
-}
 
   Future<void> _addNewRecord() async {
     TextEditingController nivelController =
         TextEditingController(text: widget.nivel);
     TextEditingController laborController =
         TextEditingController(text: widget.labor);
-TextEditingController seccionLaborController = TextEditingController(text: area);
+    TextEditingController seccionLaborController =
+        TextEditingController(text: area);
     TextEditingController nbrocaController = TextEditingController();
     TextEditingController ntaladroController = TextEditingController();
     TextEditingController ntaladrosRimadosController = TextEditingController();
@@ -170,7 +173,8 @@ TextEditingController seccionLaborController = TextEditingController(text: area)
                               _buildTextField("Labor", laborController,
                                   readOnly: true),
                               _buildNumberField("Sección de la Labor (a x b)",
-                                  seccionLaborController, readOnly: true),
+                                  seccionLaborController,
+                                  readOnly: true),
                               _buildNumberField("N° Broca", nbrocaController),
                               _buildNumberField(
                                   "N° Taladro", ntaladroController),
@@ -245,10 +249,10 @@ TextEditingController seccionLaborController = TextEditingController(text: area)
                                   detallesTrabajoController.text,
                                 );
 
-                              if (widget.idOperacion != null) {
-                                await dbHelper.actualizarEstadoAParciales(
-                                    widget.idOperacion!);
-                              }
+                                if (widget.idOperacion != null) {
+                                  await dbHelper.actualizarEstadoAParciales(
+                                      widget.idOperacion!);
+                                }
 
                                 _loadData();
                                 Navigator.of(context).pop();
@@ -329,7 +333,8 @@ TextEditingController seccionLaborController = TextEditingController(text: area)
                               _buildTextField("Labor", laborController,
                                   readOnly: true),
                               _buildNumberField("Sección de la Labor (a x b)",
-                                  seccionLaborController, readOnly: true),
+                                  seccionLaborController,
+                                  readOnly: true),
                               _buildNumberField("N° Broca", nbrocaController),
                               _buildNumberField(
                                   "N° Taladro", ntaladroController),
@@ -720,14 +725,41 @@ TextEditingController seccionLaborController = TextEditingController(text: area)
                 ),
               ),
             ),
+            SizedBox(height: 16),
+Center(
+  child: SizedBox(
+    width: 200, // Ancho fijo que puedes ajustar
+    child: ElevatedButton(
+      onPressed: () {
+        showPdfDialog(
+          context,
+          widget.tipoOperacion,
+          tipoLabor: widget.tipo_labor,
+          labor: widget.labor,
+          ala: widget.ala,
+        );
+      },
+      style: ElevatedButton.styleFrom(
+        backgroundColor: Color(0xFF21899C),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+        ),
+        padding: EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+        textStyle: TextStyle(fontSize: 16),
+      ),
+      child: Text("Ver PDF", style: TextStyle(color: Colors.white)),
+    ),
+  ),
+),
+            SizedBox(height: 8),
           ],
         ),
       ),
       floatingActionButton: FloatingActionButton(
-  onPressed: widget.estado == "cerrado" ? null : _addNewRecord,
-  child: Icon(Icons.add),
-  backgroundColor: widget.estado == "cerrado" ? Colors.grey : Colors.blue,
-),
+        onPressed: widget.estado == "cerrado" ? null : _addNewRecord,
+        child: Icon(Icons.add),
+        backgroundColor: widget.estado == "cerrado" ? Colors.grey : Colors.blue,
+      ),
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
     );
   }

@@ -2,14 +2,14 @@ import 'package:flutter/material.dart';
 
 class ExpandedReportButton extends StatelessWidget {
   final String title;
-  final String imagePath;
+  final String? imagePath; // ahora es opcional
   final Color backgroundColor;
   final VoidCallback onPressed;
 
   const ExpandedReportButton({
     Key? key,
     required this.title,
-    required this.imagePath,
+    this.imagePath, // sin required
     required this.backgroundColor,
     required this.onPressed,
   }) : super(key: key);
@@ -39,18 +39,17 @@ class ExpandedReportButton extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
-              // Imagen más grande
-              Expanded(
-                flex: 3,
-                child: Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: Image.asset(
-                    imagePath,
-                    fit: BoxFit.contain,
+              if (imagePath != null) // mostrar solo si imagePath tiene valor
+                Expanded(
+                  flex: 3,
+                  child: Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: Image.asset(
+                      imagePath!,
+                      fit: BoxFit.contain,
+                    ),
                   ),
                 ),
-              ),
-              // Texto con mejor formato
               Expanded(
                 flex: 2,
                 child: FittedBox(

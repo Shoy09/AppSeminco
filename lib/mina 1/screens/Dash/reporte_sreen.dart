@@ -14,6 +14,7 @@ import 'package:app_seminco/inicio/login_screen.dart';
 import 'package:app_seminco/mina%201/services/ApiServiceAccesorio.dart';
 import 'package:app_seminco/mina%201/services/ApiServiceExplosivo.dart';
 import 'package:app_seminco/mina%201/services/ApiServiceFor%20.dart';
+import 'package:app_seminco/mina%201/services/ApiServicePdf.dart';
 import 'package:app_seminco/mina%201/services/ApiServiceTipoPerforacion.dart';
 import 'package:app_seminco/mina%201/services/Plan%20mensual/api_service_FechasPlanMensualService.dart';
 import 'package:app_seminco/mina%201/services/Plan%20mensual/api_service_plan_mensual.dart';
@@ -25,8 +26,11 @@ import 'package:app_seminco/mina%201/services/api_service_explosivos.dart';
 import 'package:app_seminco/mina%201/services/api_service_toneladas.dart';
 import 'package:app_seminco/mina%201/services/api_services_Empresa.dart';
 import 'package:app_seminco/mina%201/services/api_services_Equipo.dart';
+import 'package:app_seminco/mina%201/services/ingreso%20nube/ApiServiceExploracion.dart';
 import 'package:flutter/material.dart';
 import 'dart:convert';
+
+import 'package:provider/provider.dart';
 
 class ReporteScreenMina1 extends StatefulWidget {
   final String token;
@@ -47,6 +51,8 @@ class _ReporteScreenMina1State extends State<ReporteScreenMina1> {
   bool isLoading = false;
   late ApiServiceEstado estadoService;
   Map<String, dynamic> operacionesAutorizadas = {};
+
+
   @override
   void initState() {
     super.initState();
@@ -54,6 +60,10 @@ class _ReporteScreenMina1State extends State<ReporteScreenMina1> {
     estadoService = ApiServiceEstado();
     _cargarNombreUsuario();
     // _inicializarBaseDeDatos();
+
+  //   final connectivity = Provider.of<ConnectivityService>(context, listen: false);
+  // final syncService = Provider.of<BackgroundSyncService>(context, listen: false);
+
   }
 
   Future<void> _actualizarDatos(BuildContext context) async {
@@ -87,6 +97,7 @@ class _ReporteScreenMina1State extends State<ReporteScreenMina1> {
         "Plan Metraje": () => fetchPlanMetraje(anio, mes),
         "Plan Producción": () => fetchPlanProduccion(anio, mes),
         "Toneladas": fetchToneladas,
+        "pdf": () => fetchPdfsDelMes(mes),
       };
 
       bool errorOcurrido = false;
@@ -232,6 +243,38 @@ class _ReporteScreenMina1State extends State<ReporteScreenMina1> {
       print("Error al cargar los tipos de perforación: $e");
     }
   }
+
+    Future<void> fetchExploracionesMina1() async {
+    try {
+      final apiService = ApiServiceExploracion_Mina1(); // ✅ Crear una instancia
+
+      final tipos = await apiService.fetchExploracionesMina1(widget.token);
+      print("Tipos de Perforación cargados correctamente: $tipos");
+
+      // Verificar si los datos se almacenaron correctamente
+      final dbHelper = DatabaseHelper_Mina1();
+      final tiposBD = await dbHelper.getAll('TipoPerforacion');
+      print("Tipos de Perforación en la base de datos local: $tiposBD");
+    } catch (e) {
+      print("Error al cargar los tipos de perforación: $e");
+    }
+  }
+
+Future<void> fetchPdfsDelMes(String mes) async {
+  try {
+    final apiService = ApiServicePdf(); // ✅ Crear una instancia
+    final pdfs = await apiService.fetchPdfsPorMes(widget.token, mes);
+    print("PDFs cargados correctamente: $pdfs");
+
+    // Verificar si los datos se almacenaron correctamente
+    final dbHelper = DatabaseHelper_Mina1();
+    final pdfsBD = await dbHelper.getAll('PdfModel');
+    print("PDFs en la base de datos local: $pdfsBD");
+  } catch (e) {
+    print("Error al cargar los PDFs: $e");
+  }
+}
+
 
   Future<void> fetchEmpresa() async {
     try {
@@ -458,10 +501,14 @@ Future<void> fetchToneladas() async {
             onSelected: (value) async {
               if (value == 'actualizar') {
                 await _actualizarDatos(context);
+              } 
+              else if (value == 'mediciones') {
+                await fetchExploracionesMina1();
               } else if (value == 'cerrar_sesion') {
                 // Navegar a la pantalla de login y limpiar el stack de navegación
                 Navigator.of(context).pushAndRemoveUntil(
-                  MaterialPageRoute(builder: (context) => LoginScreen()),
+                  // MaterialPageRoute(builder: (context) => LoginScreen()),
+                   MaterialPageRoute(builder: (context) => SignInFive()),
                   (Route<dynamic> route) => false,
                 );
               }
@@ -474,6 +521,16 @@ Future<void> fetchToneladas() async {
                     Icon(Icons.refresh, color: Colors.black),
                     SizedBox(width: 8),
                     Text('Actualizar datos'),
+                  ],
+                ),
+              ),
+              PopupMenuItem(
+                value: 'mediciones',
+                child: Row(
+                  children: const [
+                    Icon(Icons.refresh, color: Colors.black),
+                    SizedBox(width: 8),
+                    Text('Actualizar Mediciones'),
                   ],
                 ),
               ),

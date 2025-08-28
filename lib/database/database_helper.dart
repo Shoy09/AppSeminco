@@ -24,7 +24,7 @@ class DatabaseHelper_Mina1 {
   static Database? _database;
   static String? _currentUserDni;
   static bool _isInitialized = false;
-  static const int _currentDbVersion = 1;
+  static const int _currentDbVersion = 4;
 
   DatabaseHelper_Mina1._internal() {
     // Inicialización única para evitar múltiples llamadas
@@ -612,7 +612,8 @@ class DatabaseHelper_Mina1 {
   CREATE TABLE TipoPerforacion (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     nombre TEXT NOT NULL,
-    proceso TEXT NULL
+    proceso TEXT NULL,
+    permitido_medicion INTEGER NOT NULL DEFAULT 0
   )
 ''');
 
@@ -725,6 +726,20 @@ await db.execute('''
   )
 ''');
 
+await db.execute('''
+  CREATE TABLE IF NOT EXISTS PdfModel (
+    id INTEGER PRIMARY KEY,
+    proceso TEXT NOT NULL,
+    mes TEXT NOT NULL,
+    url_pdf TEXT NOT NULL,
+    tipo_labor TEXT,
+    labor TEXT,
+    ala TEXT,
+    createdAt TEXT NOT NULL,
+    updatedAt TEXT NOT NULL
+  )
+''');
+
 
     print(
         'Base de datos y tablas creadas: FormatoPlanMineral, Operacion, PerforacionTaladroLargo, Slot, Taladro, Estado, Usuario');
@@ -732,9 +747,49 @@ await db.execute('''
 
   //Actualizar bd---------------------------------------------------------------------------------
 Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
-
+  if (oldVersion < 2) {
+    if (!await _columnaExiste(db, 'TipoPerforacion', 'permitido_medicion')) {
+      await db.execute("ALTER TABLE TipoPerforacion ADD COLUMN permitido_medicion INTEGER NOT NULL DEFAULT 0");
+    }
+  }
+    if (oldVersion < 3) {
+    // Verificar si la tabla 'PdfModel' no existe antes de crearla
+    if (!await _tablaExiste(db, 'PdfModel')) {
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS PdfModel (
+          id INTEGER PRIMARY KEY,
+          proceso TEXT NOT NULL,
+          mes TEXT NOT NULL,
+          url_pdf TEXT NOT NULL,
+          createdAt TEXT NOT NULL,
+          updatedAt TEXT NOT NULL
+        )
+      ''');
+    }
+  }
+  if (oldVersion < 4) {
+    // Verificar y agregar las nuevas columnas si no existen
+    if (await _tablaExiste(db, 'PdfModel')) {
+      if (!await _columnaExiste(db, 'PdfModel', 'tipo_labor')) {
+        await db.execute("ALTER TABLE PdfModel ADD COLUMN tipo_labor TEXT");
+      }
+      if (!await _columnaExiste(db, 'PdfModel', 'labor')) {
+        await db.execute("ALTER TABLE PdfModel ADD COLUMN labor TEXT");
+      }
+      if (!await _columnaExiste(db, 'PdfModel', 'ala')) {
+        await db.execute("ALTER TABLE PdfModel ADD COLUMN ala TEXT");
+      }
+    }
+  }
 }
 
+Future<bool> _tablaExiste(Database db, String tabla) async {
+  final result = await db.rawQuery(
+    "SELECT name FROM sqlite_master WHERE type='table' AND name=?",
+    [tabla],
+  );
+  return result.isNotEmpty;
+}
 
   Future<bool> _columnaExiste(Database db, String tabla, String columna) async {
     final result = await db.rawQuery("PRAGMA table_info($tabla)");
@@ -1807,12 +1862,33 @@ Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
   return List.generate(maps.length, (i) => TipoPerforacion.fromJson(maps[i]));
 }
 
+Future<List<TipoPerforacion>> getTiposPerforacionhorizontalfil() async {
+  final db = await database;
+  final List<Map<String, dynamic>> maps = await db.query(
+    'TipoPerforacion',
+    where: 'proceso = ? AND permitido_medicion = ?',  // Cambio aquí
+    whereArgs: ['PERFORACIÓN HORIZONTAL', 1],        // Cambio aquí
+  );
+  return List.generate(maps.length, (i) => TipoPerforacion.fromJson(maps[i]));
+}
+
+
   Future<List<TipoPerforacion>> getTiposPerforacionLargo() async {
   final db = await database;
   final List<Map<String, dynamic>> maps = await db.query(
     'TipoPerforacion',
     where: 'proceso = ?',
     whereArgs: ['PERFORACIÓN TALADROS LARGOS'],
+  );
+  return List.generate(maps.length, (i) => TipoPerforacion.fromJson(maps[i]));
+}
+
+  Future<List<TipoPerforacion>> getTiposPerforacionLargofil() async {
+  final db = await database;
+  final List<Map<String, dynamic>> maps = await db.query(
+    'TipoPerforacion',
+    where: 'proceso = ? AND permitido_medicion = ?',
+    whereArgs: ['PERFORACIÓN TALADROS LARGOS', 1],
   );
   return List.generate(maps.length, (i) => TipoPerforacion.fromJson(maps[i]));
 }
@@ -2588,6 +2664,47 @@ Future<List<Map<String, dynamic>>> obtenerTodasToneladas() async {
 
   //EXPLOSIVOS PARA MEDICIONES------------------------------------------
 
+Future<List<Map<String, dynamic>>> obtenerExploracionesCompletasPorZona(String zona) async {
+  try {
+    final Database db = await database;
+    
+    // Obtener solo las exploraciones con medicion = 0 y la zona especificada
+    final List<Map<String, dynamic>> exploraciones = await db.query(
+      'nube_Datos_trabajo_exploraciones',
+      where: 'medicion = ? AND zona = ?',
+      whereArgs: [0, zona],
+      orderBy: 'fecha DESC, turno DESC',
+    );
+
+    if (exploraciones.isEmpty) return [];
+
+    List<Map<String, dynamic>> resultado = [];
+
+    for (var exploracion in exploraciones) {
+      // Crear un nuevo mapa mutable para la exploración
+      Map<String, dynamic> exploracionCompleta = Map<String, dynamic>.from(exploracion);
+      int exploracionId = exploracion['id'];
+      String idnube = exploracion['idnube']?.toString() ?? '';
+
+      // Obtener despachos relacionados
+      exploracionCompleta['despachos'] = await _obtenerDespachosPorExploracion(exploracionId);
+      
+      // Obtener devoluciones relacionadas
+      exploracionCompleta['devoluciones'] = await _obtenerDevolucionesPorExploracion(exploracionId);
+      
+      // Asegurar que idnube está incluido
+      exploracionCompleta['idnube'] = idnube;
+
+      resultado.add(exploracionCompleta);
+    }
+
+    return resultado;
+  } catch (e) {
+    print('Error al obtener exploraciones completas por zona: $e');
+    return [];
+  }
+}
+
 Future<List<Map<String, dynamic>>> obtenerExploracionesCompletas() async {
   try {
     final Database db = await database;
@@ -2699,4 +2816,53 @@ Future<List<Map<String, dynamic>>> _obtenerDevolucionesPorExploracion(int explor
 
   return devolucionesCompletas;
 }
+
+//PDF-------------------------------------------------------------------------------------------------------------
+Future<Map<String, dynamic>?> getPdfByProceso({
+  required String proceso,
+  String? tipoLabor,
+  String? labor,
+  String? ala,
+}) async {
+  final db = await database;
+
+  String whereClause = 'proceso = ?';
+  List<dynamic> whereArgs = [proceso];
+
+  if (tipoLabor != null && tipoLabor.isNotEmpty) {
+    whereClause += ' AND tipo_labor = ?';
+    whereArgs.add(tipoLabor);
+  }
+
+  if (labor != null && labor.isNotEmpty) {
+    whereClause += ' AND labor = ?';
+    whereArgs.add(labor);
+  }
+
+  if (ala != null && ala.isNotEmpty) {
+    whereClause += ' AND ala = ?';
+    whereArgs.add(ala);
+  }
+
+  final List<Map<String, dynamic>> result = await db.query(
+    'PdfModel',
+    where: whereClause,
+    whereArgs: whereArgs,
+    limit: 1,
+  );
+
+  return result.isNotEmpty ? result.first : null;
+}
+
+
+
+Future<List<Map<String, dynamic>>> getAllPdfs() async {
+  final db = await database;
+
+  final List<Map<String, dynamic>> result = await db.query('PdfModel');
+
+  return result;
+}
+
+
 }

@@ -1,3 +1,4 @@
+import 'package:app_seminco/components/showPdfDialog_mina2.dart';
 import 'package:flutter/material.dart';
 import 'package:app_seminco/database/database_helper_mina_2.dart';
 
@@ -5,14 +6,19 @@ class FormularioScreen extends StatefulWidget {
   final String estado;
   final String tipoOperacion; // 🔹 Parámetro recibido
   final int id;
-  final int? idOperacion;
+  final String tipo_labor;
+  final String ala;
+
   final String nivel;
   final String labor;
+  final int operacionId;
 
   FormularioScreen(
       {required this.id,
-      required this.idOperacion,
+      required this.ala,
+            required this.tipo_labor,
       required this.estado,
+      required this.operacionId,
       required this.tipoOperacion,
       required this.nivel,
       required this.labor});
@@ -28,33 +34,10 @@ class _FormularioScreenState extends State<FormularioScreen> {
 
   @override
   void initState() {
-    print('🛠️ idOperacion recibido: ${widget.idOperacion}');
+    print('🛠️ idOperacion recibido: ${widget.operacionId}');
     print('🛠️ id: ${widget.id}');
     super.initState();
     _loadData();
-    obtenerEstadosBD();
-  }
-
-  void obtenerEstadosBD() async {
-    List<Map<String, dynamic>> estadosObtenidos =
-        await DatabaseHelper_Mina2().getEstadosBDOPERATIVO(widget.tipoOperacion);
-
-    print(
-        "Estados obtenidos de la BD para proceso '${widget.tipoOperacion}' (solo OPERATIVO): $estadosObtenidos");
-
-    // Usamos un conjunto (Set) para evitar duplicados
-    Set<String> estadosUnicos = {};
-
-    // Agregar los estados con formato "codigo - tipo_estado"
-    for (var estado in estadosObtenidos) {
-      String estadoFormato =
-          "${estado['codigo']} - ${estado['tipo_estado']}"; // Concatenar código y estado
-      estadosUnicos.add(estadoFormato); // Agregar al set
-    }
-
-    setState(() {
-      estados = estadosUnicos.toList(); // Convertimos el set a lista
-    });
   }
 
   void _loadData() async {
@@ -70,16 +53,16 @@ class _FormularioScreenState extends State<FormularioScreen> {
         TextEditingController(text: widget.nivel);
     TextEditingController tajoController =
         TextEditingController(text: widget.labor);
-    TextEditingController nbrocaController = TextEditingController();
     TextEditingController ntaladroController = TextEditingController();
     TextEditingController nbarrasController = TextEditingController();
     TextEditingController longitudPerforacionController =
         TextEditingController();
-    TextEditingController anguloPerforacionController = TextEditingController();
     TextEditingController nfilasDeHastaController = TextEditingController();
     TextEditingController detallesTrabajoController = TextEditingController();
+  // Lista de materiales disponibles (ejemplos)
+  List<String> materiales = ['Desmonte', 'Mineral'];
+  String? materialSeleccionado;
 
-    String? selectedCodigoActividad;
 
     await showDialog(
       context: context,
@@ -104,29 +87,45 @@ class _FormularioScreenState extends State<FormularioScreen> {
                         child: SingleChildScrollView(
                           child: Column(
                             children: [
-                              _buildDropdownField(
-                                "Código Actividad",
-                                estados,
-                                selectedCodigoActividad,
-                                (String? newValue) {
-                                  setState(() {
-                                    selectedCodigoActividad =
-                                        newValue?.split(" - ")[0];
-                                  });
-                                },
-                              ),
                               _buildNumberField("Nivel", nivelController,
                                   readOnly: true),
                               _buildTextField("Tajo", tajoController,
                                   readOnly: true),
-                              _buildNumberField("N° Broca", nbrocaController),
+                              
                               _buildNumberField(
                                   "N° Taladro", ntaladroController),
+                                  Padding(
+                              padding: const EdgeInsets.only(top: 16.0),
+                              child: InputDecorator(
+                                decoration: InputDecoration(
+                                  labelText: "Material utilizado",
+                                  border: OutlineInputBorder(),
+                                ),
+                                child: DropdownButtonHideUnderline(
+                                  child: DropdownButton<String>(
+                                    value: materialSeleccionado,
+                                    isDense: true,
+                                    isExpanded: true,
+                                    hint: Text("Seleccione un material"),
+                                    items: materiales.map((String value) {
+                                      return DropdownMenuItem<String>(
+                                        value: value,
+                                        child: Text(value),
+                                      );
+                                    }).toList(),
+                                    onChanged: (String? newValue) {
+                                      setState(() {
+                                        materialSeleccionado = newValue;
+                                      });
+                                    },
+                                  ),
+                                ),
+                              ),
+                            ),
                               _buildNumberField("N° Barras", nbarrasController),
                               _buildDecimalField("Longitud Perforación (m)",
                                   longitudPerforacionController),
-                              _buildDecimalField("Ángulo Perforación (m)",
-                                  anguloPerforacionController),
+                              
                               _buildDecimalField("N° Filas (De - Hasta)",
                                   nfilasDeHastaController),
                               _buildTextField("Detalles Trabajo Realizado",
@@ -148,13 +147,6 @@ class _FormularioScreenState extends State<FormularioScreen> {
                             onPressed: () async {
                               List<String> missingFields = [];
 
-                              if (selectedCodigoActividad == null ||
-                                  selectedCodigoActividad!.isEmpty) {
-                                missingFields.add("Código Actividad");
-                              }
-                              if (nbrocaController.text.isEmpty) {
-                                missingFields.add("N° Broca");
-                              }
                               if (ntaladroController.text.isEmpty) {
                                 missingFields.add("N° Taladro");
                               }
@@ -164,14 +156,15 @@ class _FormularioScreenState extends State<FormularioScreen> {
                               if (longitudPerforacionController.text.isEmpty) {
                                 missingFields.add("Longitud Perforación");
                               }
-                              if (anguloPerforacionController.text.isEmpty) {
-                                missingFields.add("Ángulo Perforación");
-                              }
+
                               if (nfilasDeHastaController.text.isEmpty) {
                                 missingFields.add("N° Filas (De - Hasta)");
                               }
                               if (detallesTrabajoController.text.isEmpty) {
                                 missingFields.add("Detalles Trabajo Realizado");
+                              }
+                              if (materialSeleccionado == null) {
+                                missingFields.add("Seleccionar Material");
                               }
 
                               if (missingFields.isNotEmpty) {
@@ -187,29 +180,26 @@ class _FormularioScreenState extends State<FormularioScreen> {
 
                               await dbHelper.insertInterPerforacionTaladroLargo(
                                 widget.id,
-                                selectedCodigoActividad ?? "",
                                 nivelController.text,
                                 tajoController.text,
-                                int.tryParse(nbrocaController.text) ?? 0,
                                 int.tryParse(ntaladroController.text) ?? 0,
                                 int.tryParse(nbarrasController.text) ?? 0,
                                 double.tryParse(
                                         longitudPerforacionController.text) ??
                                     0.0,
-                                double.tryParse(
-                                        anguloPerforacionController.text) ??
-                                    0.0,
                                 nfilasDeHastaController.text,
                                 detallesTrabajoController.text,
+                                materialSeleccionado!,
                               );
 
                               // 🔹 Actualiza el estado en Operacion a "parciales"
-                              if (widget.idOperacion != null) {
+                              if (widget.operacionId != null) {
                                 await dbHelper.actualizarEstadoAParciales(
-                                    widget.idOperacion!);
+                                    widget.operacionId!);
                               }
 
                               _loadData();
+                              Navigator.of(context).pop();
                               Navigator.of(context).pop();
                             },
                             child: Text("Guardar"),
@@ -232,22 +222,21 @@ class _FormularioScreenState extends State<FormularioScreen> {
         TextEditingController(text: record['nivel']);
     TextEditingController tajoController =
         TextEditingController(text: record['tajo']);
-    TextEditingController nbrocaController =
-        TextEditingController(text: record['nbroca'].toString());
+    
     TextEditingController ntaladroController =
         TextEditingController(text: record['ntaladro'].toString());
     TextEditingController nbarrasController =
         TextEditingController(text: record['nbarras'].toString());
     TextEditingController longitudPerforacionController =
         TextEditingController(text: record['longitud_perforacion'].toString());
-    TextEditingController anguloPerforacionController =
-        TextEditingController(text: record['angulo_perforacion'].toString());
+    
     TextEditingController nfilasDeHastaController =
         TextEditingController(text: record['nfilas_de_hasta']);
     TextEditingController detallesTrabajoController =
         TextEditingController(text: record['detalles_trabajo_realizado']);
 
-    String? selectedCodigoActividad = record['codigo_actividad'];
+List<String> materiales = ['Desmonte', 'Mineral'];
+  String? materialSeleccionado = record['material']?.toString();
 
     await showDialog(
       context: context,
@@ -272,29 +261,46 @@ class _FormularioScreenState extends State<FormularioScreen> {
                         child: SingleChildScrollView(
                           child: Column(
                             children: [
-                              _buildDropdownField(
-                                "Código Actividad",
-                                estados,
-                                selectedCodigoActividad,
-                                (String? newValue) {
-                                  setState(() {
-                                    selectedCodigoActividad =
-                                        newValue?.split(" - ")[0];
-                                  });
-                                },
-                              ),
+                              
                               _buildNumberField("Nivel", nivelController,
                                   readOnly: true),
                               _buildTextField("Tajo", tajoController,
                                   readOnly: true),
-                              _buildNumberField("N° Broca", nbrocaController),
                               _buildNumberField(
                                   "N° Taladro", ntaladroController),
+                                  // Nuevo campo: Material (Dropdown)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 16.0),
+                              child: InputDecorator(
+                                decoration: InputDecoration(
+                                  labelText: "Material utilizado",
+                                  border: OutlineInputBorder(),
+                                ),
+                                child: DropdownButtonHideUnderline(
+                                  child: DropdownButton<String>(
+                                    value: materialSeleccionado,
+                                    isDense: true,
+                                    isExpanded: true,
+                                    hint: Text("Seleccione un material"),
+                                    items: materiales.map((String value) {
+                                      return DropdownMenuItem<String>(
+                                        value: value,
+                                        child: Text(value),
+                                      );
+                                    }).toList(),
+                                    onChanged: (String? newValue) {
+                                      setState(() {
+                                        materialSeleccionado = newValue;
+                                      });
+                                    },
+                                  ),
+                                ),
+                              ),
+                            ),
                               _buildNumberField("N° Barras", nbarrasController),
                               _buildDecimalField("Longitud Perforación (m)",
                                   longitudPerforacionController),
-                              _buildDecimalField("Ángulo Perforación (m)",
-                                  anguloPerforacionController),
+                              
                               _buildDecimalField("N° Filas (De - Hasta)",
                                   nfilasDeHastaController),
                               _buildTextField("Detalles Trabajo Realizado",
@@ -310,15 +316,6 @@ class _FormularioScreenState extends State<FormularioScreen> {
                             onPressed: () async {
                               List<String> missingFields = [];
 
-                              if (selectedCodigoActividad == null ||
-                                  selectedCodigoActividad!.trim().isEmpty) {
-                                missingFields.add("Código Actividad");
-                              }
-                              if (nbrocaController.text.trim().isEmpty ||
-                                  int.tryParse(nbrocaController.text) == null) {
-                                missingFields.add(
-                                    "N° Broca (Debe ser un número válido)");
-                              }
                               if (ntaladroController.text.trim().isEmpty ||
                                   int.tryParse(ntaladroController.text) ==
                                       null) {
@@ -340,15 +337,7 @@ class _FormularioScreenState extends State<FormularioScreen> {
                                 missingFields.add(
                                     "Longitud Perforación (Debe ser un número válido)");
                               }
-                              if (anguloPerforacionController.text
-                                      .trim()
-                                      .isEmpty ||
-                                  double.tryParse(
-                                          anguloPerforacionController.text) ==
-                                      null) {
-                                missingFields.add(
-                                    "Ángulo Perforación (Debe ser un número válido)");
-                              }
+                              
                               if (nfilasDeHastaController.text.trim().isEmpty) {
                                 missingFields.add("N° Filas (De - Hasta)");
                               }
@@ -371,13 +360,10 @@ class _FormularioScreenState extends State<FormularioScreen> {
                               await dbHelper.updateInterPerforacionTaladroLargo(
                                 record['id'], // ID del registro a actualizar
                                 {
-                                  "codigo_actividad":
-                                      selectedCodigoActividad ?? "",
+                                 
                                   "nivel": nivelController.text,
                                   "tajo": tajoController.text,
-                                  "nbroca":
-                                      int.tryParse(nbrocaController.text) ??
-                                          0, // Sin guion bajo
+                                   // Sin guion bajo
                                   "ntaladro":
                                       int.tryParse(ntaladroController.text) ??
                                           0,
@@ -386,14 +372,13 @@ class _FormularioScreenState extends State<FormularioScreen> {
                                   "longitud_perforacion": double.tryParse(
                                           longitudPerforacionController.text) ??
                                       0.0,
-                                  "angulo_perforacion": double.tryParse(
-                                          anguloPerforacionController.text) ??
-                                      0.0,
+                                  
                                   "nfilas_de_hasta":
                                       nfilasDeHastaController.text,
                                   "detalles_trabajo_realizado":
                                       detallesTrabajoController
                                           .text, // Nombre corregido
+                                  "material": materialSeleccionado,
                                 },
                               );
 
@@ -536,20 +521,19 @@ class _FormularioScreenState extends State<FormularioScreen> {
     );
   }
 
-  @override
+    @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text("Tabla de taladro largo"),
-        backgroundColor: Color(0xFF21899C),
-      ),
+          title: Text("Tabla de taladro largo"),
+          backgroundColor: Color(0xFF21899C)),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
             Expanded(
               child: SingleChildScrollView(
-                scrollDirection: Axis.vertical, // Permite scroll vertical
+                scrollDirection: Axis.vertical,
                 child: SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
                   child: DataTable(
@@ -559,40 +543,37 @@ class _FormularioScreenState extends State<FormularioScreen> {
                     columns: [
                       DataColumn(
                           label: Text('N°',
-                              style: TextStyle(fontWeight: FontWeight.bold))),
-                      DataColumn(
-                          label: Text('Código\nde actividad',
-                              style: TextStyle(fontWeight: FontWeight.bold))),
+                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
+                     
                       DataColumn(
                           label: Text('Nivel',
-                              style: TextStyle(fontWeight: FontWeight.bold))),
+                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
                       DataColumn(
                           label: Text('Tajo',
-                              style: TextStyle(fontWeight: FontWeight.bold))),
-                      DataColumn(
-                          label: Text('N°Broca',
-                              style: TextStyle(fontWeight: FontWeight.bold))),
+                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
+                      
                       DataColumn(
                           label: Text('N° Taladro',
-                              style: TextStyle(fontWeight: FontWeight.bold))),
+                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
+                      DataColumn(
+                        label: Text('Material',
+                            style: TextStyle(fontWeight: FontWeight.bold))),
                       DataColumn(
                           label: Text('N° Barras',
-                              style: TextStyle(fontWeight: FontWeight.bold))),
+                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
                       DataColumn(
                           label: Text('Longitud de\nperforación (m)',
-                              style: TextStyle(fontWeight: FontWeight.bold))),
-                      DataColumn(
-                          label: Text('Angulo de\nperforación (m)',
-                              style: TextStyle(fontWeight: FontWeight.bold))),
+                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
+                      
                       DataColumn(
                           label: Text('N° de Filas\n(De - Hasta)',
-                              style: TextStyle(fontWeight: FontWeight.bold))),
+                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
                       DataColumn(
                           label: Text('Detalles Trabajo realizado',
-                              style: TextStyle(fontWeight: FontWeight.bold))),
+                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
                       DataColumn(
                           label: Text('Acciones',
-                              style: TextStyle(fontWeight: FontWeight.bold))),
+                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
                     ],
                     rows: _editableData.isNotEmpty
                         ? _editableData.asMap().entries.map((entry) {
@@ -601,14 +582,12 @@ class _FormularioScreenState extends State<FormularioScreen> {
                             return DataRow(cells: [
                               DataCell(
                                   Text(index.toString())), // Número de fila
-                              _editableCell(row, 'codigo_actividad'),
                               _editableCell(row, 'nivel'),
                               _editableCell(row, 'tajo'),
-                              _editableCell(row, 'nbroca'),
                               _editableCell(row, 'ntaladro'),
+                              _editableCell(row, 'material'),
                               _editableCell(row, 'nbarras'),
                               _editableCell(row, 'longitud_perforacion'),
-                              _editableCell(row, 'angulo_perforacion'),
                               _editableCell(row, 'nfilas_de_hasta'),
                               _editableCell(row, 'detalles_trabajo_realizado'),
                               DataCell(Row(
@@ -649,7 +628,7 @@ class _FormularioScreenState extends State<FormularioScreen> {
                         : [
                             DataRow(
                               cells: List.generate(
-                                12,
+                                10,
                                 (index) => DataCell(Text('-')),
                               ),
                             ),
@@ -658,7 +637,33 @@ class _FormularioScreenState extends State<FormularioScreen> {
                 ),
               ),
             ),
-            SizedBox(height: 10),
+            SizedBox(height: 16),
+Center(
+  child: SizedBox(
+    width: 200, // Ancho fijo que puedes ajustar
+    child: ElevatedButton(
+      onPressed: () {
+        showPdfDialog(
+          context,
+          widget.tipoOperacion,
+          tipoLabor: widget.tipo_labor,
+          labor: widget.labor,
+          ala: widget.ala,
+        );
+      },
+      style: ElevatedButton.styleFrom(
+        backgroundColor: Color(0xFF21899C),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+        ),
+        padding: EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+        textStyle: TextStyle(fontSize: 16),
+      ),
+      child: Text("Ver PDF", style: TextStyle(color: Colors.white)),
+    ),
+  ),
+),
+            SizedBox(height: 8),
           ],
         ),
       ),
@@ -670,6 +675,8 @@ class _FormularioScreenState extends State<FormularioScreen> {
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
     );
   }
+
+
 
   DataCell _editableCell(Map<String, dynamic> row, String column) {
     String value = row[column] != null && row[column] != 0.0

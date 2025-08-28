@@ -24,7 +24,7 @@ class DatabaseHelper_Mina2 {
   static Database? _database;
   static String? _currentUserDni;
   static bool _isInitialized = false;
-  static const int _currentDbVersion = 1;
+  static const int _currentDbVersion = 9;
 
   DatabaseHelper_Mina2._internal() {
     // Inicialización única para evitar múltiples llamadas
@@ -153,7 +153,43 @@ class DatabaseHelper_Mina2 {
     )
 ''');
 
-    // Crear la tabla PerforacionTaladroLargo
+await db.execute('''
+  CREATE TABLE CheckListOperacion(
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    operacion_id INTEGER,
+    descripcion TEXT,
+    decision INTEGER,
+    observacion TEXT,
+    categoria TEXT,
+    FOREIGN KEY (operacion_id) REFERENCES Operacion(id) ON DELETE CASCADE
+  )
+''');
+
+    // Crear la tabla Estado
+    await db.execute('''CREATE TABLE Estado(
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      operacion_id INTEGER,
+      numero INTEGER,
+      estado TEXT,
+      codigo TEXT,
+      hora_inicio TEXT,
+      hora_final TEXT,
+      FOREIGN KEY(operacion_id) REFERENCES Operacion(id) ON DELETE CASCADE
+    )''');
+
+    await db.execute('''
+  CREATE TABLE SubEstado(
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    estado_id INTEGER,
+    codigo TEXT,
+    hora_inicio TEXT,
+    hora_final TEXT,
+    FOREIGN KEY(estado_id) REFERENCES Estado(id) ON DELETE CASCADE
+  )
+''');
+
+
+
     await db.execute('''CREATE TABLE PerforacionTaladroLargo(
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         zona TEXT,
@@ -163,8 +199,9 @@ class DatabaseHelper_Mina2 {
         nivel TEXT,
         ala TEXT DEFAULT "",
         tipo_perforacion TEXT,
-        operacion_id INTEGER,
-        FOREIGN KEY(operacion_id) REFERENCES Operacion(id) ON DELETE CASCADE
+        observacion TEXT,
+        estado_id INTEGER,
+    FOREIGN KEY(estado_id) REFERENCES Estado(id) ON DELETE CASCADE
       )''');
 
     await db.execute('''CREATE TABLE InterPerforacionTaladroLargo(
@@ -179,6 +216,7 @@ class DatabaseHelper_Mina2 {
     angulo_perforacion REAL,
     nfilas_de_hasta TEXT,
     detalles_trabajo_realizado TEXT,
+    material TEXT,
     perforaciontaladrolargo_id INTEGER,
     FOREIGN KEY(perforaciontaladrolargo_id) REFERENCES PerforacionTaladroLargo(id) ON DELETE CASCADE
  
@@ -195,8 +233,9 @@ class DatabaseHelper_Mina2 {
       nivel TEXT,
       ala TEXT DEFAULT "",
       tipo_perforacion TEXT,
-      operacion_id INTEGER,
-      FOREIGN KEY(operacion_id) REFERENCES Operacion(id) ON DELETE CASCADE
+      observacion TEXT,
+      estado_id INTEGER,
+    FOREIGN KEY(estado_id) REFERENCES Estado(id) ON DELETE CASCADE
         )
       ''');
 
@@ -213,6 +252,8 @@ class DatabaseHelper_Mina2 {
           ntaladros_rimados INTEGER,
           longitud_perforacion REAL,
           detalles_trabajo_realizado TEXT,
+          metros_perforados REAL,
+          material TEXT,
           FOREIGN KEY(perforacionhorizontal_id) REFERENCES PerforacionHorizontal(id) ON DELETE CASCADE
         )
       ''');
@@ -221,7 +262,7 @@ class DatabaseHelper_Mina2 {
     await db.execute('''
         CREATE TABLE Sostenimiento(
           id INTEGER PRIMARY KEY AUTOINCREMENT,
-          operacion_id INTEGER,
+          estado_id INTEGER,
           zona TEXT,
       tipo_labor TEXT,
       labor TEXT,
@@ -229,7 +270,8 @@ class DatabaseHelper_Mina2 {
       nivel TEXT,
       ala TEXT DEFAULT "",
       tipo_perforacion TEXT,
-          FOREIGN KEY(operacion_id) REFERENCES Operacion(id) ON DELETE CASCADE
+      observacion TEXT,
+    FOREIGN KEY(estado_id) REFERENCES Estado(id) ON DELETE CASCADE
         )
       ''');
 
@@ -243,7 +285,10 @@ class DatabaseHelper_Mina2 {
           nbroca INTEGER,
           ntaladro INTEGER,
           longitud_perforacion REAL,
+          metros_perforados REAL,
           malla_instalada TEXT,
+          detalles_trabajo_realizado TEXT,
+          material TEXT,
           sostenimiento_id INTEGER,
           FOREIGN KEY(sostenimiento_id) REFERENCES Sostenimiento(id) ON DELETE CASCADE
         )
@@ -253,11 +298,11 @@ class DatabaseHelper_Mina2 {
     await db.execute('''
         CREATE TABLE ServiciosAuxiliares(
           id INTEGER PRIMARY KEY AUTOINCREMENT,
-          operacion_id INTEGER,
+          estado_id INTEGER,
           tipo_servicio TEXT,
           descripcion TEXT,
           cantidad REAL,
-          FOREIGN KEY(operacion_id) REFERENCES Operacion(id) ON DELETE CASCADE
+          FOREIGN KEY(estado_id) REFERENCES Estado(id) ON DELETE CASCADE
         )
       ''');
 
@@ -265,12 +310,12 @@ class DatabaseHelper_Mina2 {
     await db.execute('''
         CREATE TABLE Carguio(
           id INTEGER PRIMARY KEY AUTOINCREMENT,
-          operacion_id INTEGER,
+          estado_id INTEGER,
           tipo_material TEXT,
           volumen REAL,
           maquinaria TEXT,
           operador TEXT,
-          FOREIGN KEY(operacion_id) REFERENCES Operacion(id) ON DELETE CASCADE
+          FOREIGN KEY(estado_id) REFERENCES Estado(id) ON DELETE CASCADE
         )
       ''');
 
@@ -278,27 +323,17 @@ class DatabaseHelper_Mina2 {
     await db.execute('''
         CREATE TABLE Acarreo(
           id INTEGER PRIMARY KEY AUTOINCREMENT,
-          operacion_id INTEGER,
+          estado_id INTEGER,
           destino TEXT,
           distancia_km REAL,
           tiempo_min REAL,
           equipo_transporte TEXT,
           operador TEXT,
-          FOREIGN KEY(operacion_id) REFERENCES Operacion(id) ON DELETE CASCADE
+          FOREIGN KEY(estado_id) REFERENCES Estado(id) ON DELETE CASCADE
         )
       ''');
 
-    // Crear la tabla Estado
-    await db.execute('''CREATE TABLE Estado(
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      operacion_id INTEGER,
-      numero INTEGER,
-      estado TEXT,
-      codigo TEXT,
-      hora_inicio TEXT,
-      hora_final TEXT,
-      FOREIGN KEY(operacion_id) REFERENCES Operacion(id) ON DELETE CASCADE
-    )''');
+
 
     // Crear la tabla Usuario
     await db.execute('''
@@ -331,6 +366,16 @@ class DatabaseHelper_Mina2 {
     categoria TEXT,
     proceso TEXT
   )''');
+
+  await db.execute('''
+  CREATE TABLE SubEstadoBD (
+    id INTEGER PRIMARY KEY,
+    codigo TEXT,
+    tipo_estado TEXT,
+    estadoId INTEGER,
+    FOREIGN KEY (estadoId) REFERENCES EstadostBD (id) ON DELETE CASCADE
+  )
+''');
 
     await db.execute('''
   CREATE TABLE Datos_trabajo_exploraciones(
@@ -608,11 +653,13 @@ class DatabaseHelper_Mina2 {
   )
 ''');
 
+
     await db.execute('''
   CREATE TABLE TipoPerforacion (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     nombre TEXT NOT NULL,
-    proceso TEXT NULL
+    proceso TEXT NULL,
+    permitido_medicion INTEGER NOT NULL DEFAULT 0
   )
 ''');
 
@@ -725,14 +772,151 @@ await db.execute('''
   )
 ''');
 
+await db.execute('''
+  CREATE TABLE IF NOT EXISTS checklist_items (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    proceso TEXT NOT NULL,
+    categoria TEXT NOT NULL,
+    nombre TEXT NOT NULL
+  )
+''');
+
+await db.execute('''
+  CREATE TABLE IF NOT EXISTS PdfModel (
+    id INTEGER PRIMARY KEY,
+    proceso TEXT NOT NULL,
+    mes TEXT NOT NULL,
+    url_pdf TEXT NOT NULL,
+    tipo_labor TEXT,
+    labor TEXT,
+    ala TEXT,
+    createdAt TEXT NOT NULL,
+    updatedAt TEXT NOT NULL
+  )
+''');
+
+
     print(
         'Base de datos y tablas creadas: FormatoPlanMineral, Operacion, PerforacionTaladroLargo, Slot, Taladro, Estado, Usuario');
   }
 
   //Actualizar bd---------------------------------------------------------------------------------
-  Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
-    
+Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
+  if (oldVersion < 2) {
+    if (!await _columnaExiste(db, 'Sostenimiento', 'tipo_perforacion')) {
+      await db.execute("ALTER TABLE Sostenimiento ADD COLUMN tipo_perforacion TEXT");
+    }
   }
+  
+  if (oldVersion < 3) {
+    if (!await _columnaExiste(db, 'CheckListOperacion', 'categoria')) {
+      await db.execute("ALTER TABLE CheckListOperacion ADD COLUMN categoria TEXT");
+    }
+  }
+  if (oldVersion < 4) {
+    // Verificar si la tabla 'PdfModel' no existe antes de crearla
+    if (!await _tablaExiste(db, 'PdfModel')) {
+      await db.execute('''
+  CREATE TABLE IF NOT EXISTS PdfModel (
+    id INTEGER PRIMARY KEY,
+    proceso TEXT NOT NULL,
+    mes TEXT NOT NULL,
+    url_pdf TEXT NOT NULL,
+    tipo_labor TEXT,
+    labor TEXT,
+    ala TEXT,
+    createdAt TEXT NOT NULL,
+    updatedAt TEXT NOT NULL
+  )
+''');
+    }
+  }
+  if (oldVersion < 5) {
+    if (await _tablaExiste(db, 'InterSostenimiento')) {
+      if (!await _columnaExiste(db, 'InterSostenimiento', 'detalles_trabajo_realizado')) {
+        await db.execute("ALTER TABLE InterSostenimiento ADD COLUMN detalles_trabajo_realizado TEXT");
+      }
+      if (!await _columnaExiste(db, 'InterSostenimiento', 'material')) {
+        await db.execute("ALTER TABLE InterSostenimiento ADD COLUMN material TEXT");
+      }
+      if (!await _columnaExiste(db, 'InterPerforacionHorizontal', 'material')) {
+        await db.execute("ALTER TABLE InterPerforacionHorizontal ADD COLUMN material TEXT");
+      }
+      if (!await _columnaExiste(db, 'InterPerforacionTaladroLargo', 'material')) {
+        await db.execute("ALTER TABLE InterPerforacionTaladroLargo ADD COLUMN material TEXT");
+      }
+    }
+  }
+  if (oldVersion < 6) {
+  if (await _tablaExiste(db, 'PerforacionTaladroLargo')) {
+    if (!await _columnaExiste(db, 'PerforacionTaladroLargo', 'observacion')) {
+      await db.execute("ALTER TABLE PerforacionTaladroLargo ADD COLUMN observacion TEXT");
+    }
+  }
+  if (await _tablaExiste(db, 'PerforacionHorizontal')) {
+    if (!await _columnaExiste(db, 'PerforacionHorizontal', 'observacion')) {
+      await db.execute("ALTER TABLE PerforacionHorizontal ADD COLUMN observacion TEXT");
+    }
+  }
+  if (await _tablaExiste(db, 'Sostenimiento')) {
+    if (!await _columnaExiste(db, 'Sostenimiento', 'observacion')) {
+      await db.execute("ALTER TABLE Sostenimiento ADD COLUMN observacion TEXT");
+    }
+  }
+}if (oldVersion < 7) {
+  // InterSostenimiento
+  if (await _tablaExiste(db, 'InterSostenimiento')) {
+    if (!await _columnaExiste(db, 'InterSostenimiento', 'metros_perforados')) {
+      await db.execute("ALTER TABLE InterSostenimiento ADD COLUMN metros_perforados REAL");
+    }
+  }
+
+  // InterPerforacionHorizontal
+  if (await _tablaExiste(db, 'InterPerforacionHorizontal')) {
+    if (!await _columnaExiste(db, 'InterPerforacionHorizontal', 'metros_perforados')) {
+      await db.execute("ALTER TABLE InterPerforacionHorizontal ADD COLUMN metros_perforados REAL");
+    }
+  }
+}if (oldVersion < 8) {
+  // Crear tabla SubEstadoBD si no existe
+  if (!await _tablaExiste(db, 'SubEstadoBD')) {
+    await db.execute('''
+      CREATE TABLE SubEstadoBD (
+        id INTEGER PRIMARY KEY,
+        codigo TEXT,
+        tipo_estado TEXT,
+        estadoId INTEGER,
+        FOREIGN KEY (estadoId) REFERENCES EstadostBD (id) ON DELETE CASCADE
+      )
+    ''');
+  }
+}
+if (oldVersion < 9) {
+  // Crear tabla SubEstado si no existe
+  if (!await _tablaExiste(db, 'SubEstado')) {
+    await db.execute('''
+      CREATE TABLE SubEstado (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        estado_id INTEGER,
+        codigo TEXT,
+        hora_inicio TEXT,
+        hora_final TEXT,
+        FOREIGN KEY (estado_id) REFERENCES Estado(id) ON DELETE CASCADE
+      )
+    ''');
+  }
+}
+
+}
+
+Future<bool> _tablaExiste(Database db, String tableName) async {
+  final result = await db.rawQuery(
+    "SELECT name FROM sqlite_master WHERE type='table' AND name=?",
+    [tableName]
+  );
+  return result.isNotEmpty;
+}
+
 
   Future<bool> _columnaExiste(Database db, String tabla, String columna) async {
     final result = await db.rawQuery("PRAGMA table_info($tabla)");
@@ -836,13 +1020,31 @@ await db.execute('''
     final db = await database;
 
     final List<Map<String, dynamic>> perforacionesRaw = await db.rawQuery('''
-    SELECT id, zona, tipo_labor, labor, ala, veta, nivel, tipo_perforacion 
+    SELECT id, zona, tipo_labor, labor, ala, veta, nivel, observacion, tipo_perforacion 
     FROM PerforacionTaladroLargo
-    WHERE operacion_id = ?
+    WHERE estado_id = ?
   ''', [operacionId]);
 
     return perforacionesRaw.map((p) => Map<String, dynamic>.from(p)).toList();
   }
+
+Future<Map<String, dynamic>?> getPerforacionTaladroLargoByEstadoId(int estadoId) async {
+  final db = await database;
+
+  final List<Map<String, dynamic>> result = await db.rawQuery('''
+    SELECT id, zona, tipo_labor, labor, ala, veta, nivel, observacion, tipo_perforacion 
+    FROM PerforacionTaladroLargo
+    WHERE estado_id = ?
+  ''', [estadoId]);
+
+  if (result.isNotEmpty) {
+    return Map<String, dynamic>.from(result.first);
+  } else {
+    return null; // No se encontró ningún registro
+  }
+}
+
+
 
   Future<int> insertarPerforacionTaladroLargo({
     required String zona,
@@ -852,7 +1054,8 @@ await db.execute('''
     required String veta,
     required String nivel,
     required String tipoPerforacion,
-    required int operacionId, // ID de la Operacion relacionada
+    required int estadoId,
+    String? observacion,
   }) async {
     final Database db =
         await DatabaseHelper_Mina2().database; // Obtener la base de datos
@@ -866,12 +1069,47 @@ await db.execute('''
       'veta': veta,
       'nivel': nivel,
       'tipo_perforacion': tipoPerforacion,
-      'operacion_id': operacionId, // Relación con la tabla Operacion
+      'observacion': observacion,
+      'estado_id': estadoId, // Relación con la tabla Operacion
     };
 
     // Insertar en la base de datos y devolver el ID generado
     return await db.insert('PerforacionTaladroLargo', datos);
   }
+
+  Future<int> actualizarPerforacionTaladroLargo({
+  required int id, // Necesitas el id del registro a actualizar
+  required String zona,
+  required String tipoLabor,
+  required String labor,
+  required String ala,
+  required String veta,
+  required String nivel,
+  required String tipoPerforacion,
+  String? observacion,
+}) async {
+  final Database db = await DatabaseHelper_Mina2().database; // Obtener la base de datos
+
+  // Crear el mapa con los datos a actualizar (sin estado_id)
+  Map<String, dynamic> datos = {
+    'zona': zona,
+    'tipo_labor': tipoLabor,
+    'labor': labor,
+    'ala': ala,
+    'veta': veta,
+    'nivel': nivel,
+    'tipo_perforacion': tipoPerforacion,
+    'observacion': observacion,
+  };
+
+  // Realizar la actualización y devolver el número de filas afectadas
+  return await db.update(
+    'PerforacionTaladroLargo',
+    datos,
+    where: 'id = ?',
+    whereArgs: [id],
+  );
+}
 
   Future<int> insertarPerforacionTaladroHorizontal({
     required String zona,
@@ -881,7 +1119,8 @@ await db.execute('''
     required String veta,
     required String nivel,
     required String tipoPerforacion,
-    required int operacionId, // ID de la Operacion relacionada
+    required int estadoId,
+    String? observacion,
   }) async {
     final Database db =
         await DatabaseHelper_Mina2().database; // Obtener la base de datos
@@ -895,7 +1134,8 @@ await db.execute('''
       'veta': veta,
       'nivel': nivel,
       'tipo_perforacion': tipoPerforacion,
-      'operacion_id': operacionId, // Relación con la tabla Operacion
+      'estado_id': estadoId,
+      'observacion': observacion,
     };
 
     // Insertar en la base de datos y devolver el ID generado
@@ -910,7 +1150,8 @@ await db.execute('''
     required String veta,
     required String nivel,
     required String tipoPerforacion,
-    required int operacionId, // ID de la Operacion relacionada
+    String? observacion, 
+    required int estadoId, // ID de la Operacion relacionada
   }) async {
     final Database db =
         await DatabaseHelper_Mina2().database; // Obtener la base de datos
@@ -924,7 +1165,8 @@ await db.execute('''
       'veta': veta,
       'nivel': nivel,
       'tipo_perforacion': tipoPerforacion,
-      'operacion_id': operacionId, // Relación con la tabla Operacion
+      'observacion': observacion,
+      'estado_id': estadoId, // Relación con la tabla Operacion
     };
 
     // Insertar en la base de datos y devolver el ID generado
@@ -936,26 +1178,127 @@ await db.execute('''
     final db = await database;
 
     final List<Map<String, dynamic>> perforacionesRaw = await db.rawQuery('''
-    SELECT id, zona, tipo_labor, labor, ala, veta, nivel, tipo_perforacion 
+    SELECT id, zona, tipo_labor, labor, ala, veta, nivel, observacion, tipo_perforacion 
     FROM PerforacionHorizontal
-    WHERE operacion_id = ?
+    WHERE estado_id = ?
   ''', [operacionId]);
 
     return perforacionesRaw.map((p) => Map<String, dynamic>.from(p)).toList();
   }
 
+  Future<Map<String, dynamic>?> getPerforacionesTaladroHorizontalEstadoId(int estadoId) async {
+  final db = await database;
+
+  final List<Map<String, dynamic>> result = await db.rawQuery('''
+    SELECT id, zona, tipo_labor, labor, ala, veta, nivel, observacion, tipo_perforacion 
+    FROM PerforacionHorizontal
+    WHERE estado_id = ?
+  ''', [estadoId]);
+
+  if (result.isNotEmpty) {
+    return Map<String, dynamic>.from(result.first);
+  } else {
+    return null; // No se encontró ningún registro
+  }
+}
+
+  Future<int> actualizarPerforacionHorizontal({
+  required int id, // Necesitas el id del registro a actualizar
+  required String zona,
+  required String tipoLabor,
+  required String labor,
+  required String ala,
+  required String veta,
+  required String nivel,
+  required String tipoPerforacion,
+  String? observacion, 
+}) async {
+  final Database db = await DatabaseHelper_Mina2().database; // Obtener la base de datos
+
+  // Crear el mapa con los datos a actualizar (sin estado_id)
+  Map<String, dynamic> datos = {
+    'zona': zona,
+    'tipo_labor': tipoLabor,
+    'labor': labor,
+    'ala': ala,
+    'veta': veta,
+    'nivel': nivel,
+    'tipo_perforacion': tipoPerforacion,
+    'observacion': observacion,
+  };
+
+  // Realizar la actualización y devolver el número de filas afectadas
+  return await db.update(
+    'PerforacionHorizontal',
+    datos,
+    where: 'id = ?',
+    whereArgs: [id],
+  );
+}
+ 
   Future<List<Map<String, dynamic>>> getPerforacionesTaladroSostenimiento(
       int operacionId) async {
     final db = await database;
 
     final List<Map<String, dynamic>> perforacionesRaw = await db.rawQuery('''
-    SELECT id, zona, tipo_labor, labor, ala, veta, nivel, tipo_perforacion 
+    SELECT id, zona, tipo_labor, labor, ala, veta, nivel, observacion, tipo_perforacion 
     FROM Sostenimiento
-    WHERE operacion_id = ?
+    WHERE estado_id = ?
   ''', [operacionId]);
 
     return perforacionesRaw.map((p) => Map<String, dynamic>.from(p)).toList();
   }
+
+    Future<int> actualizarPerforacionSostenimiento({
+  required int id, // Necesitas el id del registro a actualizar
+  required String zona,
+  required String tipoLabor,
+  required String labor,
+  required String ala,
+  required String veta,
+  required String nivel,
+  required String tipoPerforacion,
+   String? observacion, 
+}) async {
+  final Database db = await DatabaseHelper_Mina2().database; // Obtener la base de datos
+
+  // Crear el mapa con los datos a actualizar (sin estado_id)
+  Map<String, dynamic> datos = {
+    'zona': zona,
+    'tipo_labor': tipoLabor,
+    'labor': labor,
+    'ala': ala,
+    'veta': veta,
+    'nivel': nivel,
+    'tipo_perforacion': tipoPerforacion,
+    'observacion': observacion,
+  };
+
+  // Realizar la actualización y devolver el número de filas afectadas
+  return await db.update(
+    'Sostenimiento',
+    datos,
+    where: 'id = ?',
+    whereArgs: [id],
+  );
+}
+
+
+    Future<Map<String, dynamic>?> getPerforacionesTaladroSostenimientoEstadoId(int estadoId) async {
+  final db = await database;
+
+  final List<Map<String, dynamic>> result = await db.rawQuery('''
+    SELECT id, zona, tipo_labor, labor, ala, veta, nivel, observacion tipo_perforacion 
+    FROM Sostenimiento
+    WHERE estado_id = ?
+  ''', [estadoId]);
+
+  if (result.isNotEmpty) {
+    return Map<String, dynamic>.from(result.first);
+  } else {
+    return null; // No se encontró ningún registro
+  }
+}
 
 //Metodos de operaciones:
   Future<List<Map<String, dynamic>>> getOperacionByTurnoAndFecha(
@@ -1014,49 +1357,110 @@ await db.execute('''
     return result;
   }
 
-  Future<int> insertOperacion(String turno, String equipo, String codigo,
-      String empresa, String fecha, String tipoOperacion) async {
-    final db = await database; // Obtén una instancia de la base de datos
+Future<int> insertOperacion(
+  String turno,
+  String equipo,
+  String codigo,
+  String empresa,
+  String fecha,
+  String tipoOperacion,
+  List<Map<String, dynamic>> checklistItems, // ✅ recibe checklistItems
+) async {
+  final db = await database;
 
-    // Insertar los datos en la tabla 'Operacion'
-    Map<String, dynamic> row = {
-      'turno': turno,
-      'equipo': equipo,
-      'codigo': codigo,
-      'empresa': empresa,
-      'fecha': fecha,
-      'tipo_operacion': tipoOperacion,
+  // Insertar en Operacion
+  Map<String, dynamic> row = {
+    'turno': turno,
+    'equipo': equipo,
+    'codigo': codigo,
+    'empresa': empresa,
+    'fecha': fecha,
+    'tipo_operacion': tipoOperacion,
+  };
+
+  int operacionId = await db.insert(
+    'Operacion',
+    row,
+    conflictAlgorithm: ConflictAlgorithm.replace,
+  );
+
+  // Insertar los tres Horometros
+  List<String> nombresHorometros = ["Diesel", "Percusion", "Electrico"];
+
+  for (String nombre in nombresHorometros) {
+    Map<String, dynamic> horometroRow = {
+      'operacion_id': operacionId,
+      'nombre': nombre,
+      'inicial': 0.0,
+      'final': 0.0,
+      'EstaOP': 0,
+      'EstaINOP': 0
     };
 
-    // Insertar operación y obtener el ID
-    int operacionId = await db.insert(
-      'Operacion',
-      row,
+    await db.insert(
+      'Horometros',
+      horometroRow,
       conflictAlgorithm: ConflictAlgorithm.replace,
     );
-
-    // Insertar los tres Horometros
-    List<String> nombresHorometros = ["Diesel", "Percusion", "Electrico"];
-
-    for (String nombre in nombresHorometros) {
-      Map<String, dynamic> horometroRow = {
-        'operacion_id': operacionId,
-        'nombre': nombre,
-        'inicial': 0.0,
-        'final': 0.0,
-        'EstaOP': 0, // false
-        'EstaINOP': 0 // false
-      };
-
-      await db.insert(
-        'Horometros',
-        horometroRow,
-        conflictAlgorithm: ConflictAlgorithm.replace,
-      );
-    }
-
-    return operacionId; // Regresa el ID de la operación creada
   }
+
+  // ✅ Insertar checklistItems en CheckListOperacion incluyendo 'categoria'
+  for (var item in checklistItems) {
+    Map<String, dynamic> checklistRow = {
+      'operacion_id': operacionId,
+      'descripcion': item['nombre'], // campo 'nombre' de checklist_items
+      'decision': 0, // inicial en 0
+      'observacion': '',
+      'categoria': item['categoria'], // ✅ nuevo campo agregado
+    };
+
+    await db.insert(
+      'CheckListOperacion',
+      checklistRow,
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  return operacionId;
+}
+
+Future<List<Map<String, dynamic>>> getCheckListOperacionByOperacionId(int operacionId) async {
+  final db = await database;
+
+  final result = await db.query(
+    'CheckListOperacion',
+    where: 'operacion_id = ?',
+    whereArgs: [operacionId],
+  );
+
+  return result;
+}
+
+Future<int> updateCheckListOperacion({
+  required int id,
+  required int decision,
+  required String observacion,
+}) async {
+  final db = await database;
+
+  // Construir el mapa con los campos a actualizar
+  Map<String, dynamic> row = {
+    'decision': decision,
+    'observacion': observacion,
+  };
+
+  // Ejecutar la actualización
+  int updated = await db.update(
+    'CheckListOperacion',
+    row,
+    where: 'id = ?',
+    whereArgs: [id],
+  );
+
+  return updated; // retorna el número de filas actualizadas (0 o 1)
+}
+
+
 
 //Metodos de estados
   Future<int> createEstado(int operacionId, int numero, String estado,
@@ -1076,6 +1480,47 @@ await db.execute('''
       conflictAlgorithm: ConflictAlgorithm.replace,
     );
   }
+
+  Future<int> updateEstado(
+  int id,
+  int numero,
+  String estado,
+  String codigo,
+  String horaInicio,
+  String horaFinal,
+) async {
+  final db = await database;
+  
+  return await db.update(
+    'Estado',
+    {
+      'numero': numero,
+      'estado': estado,
+      'codigo': codigo,
+      'hora_inicio': horaInicio,
+      'hora_final': horaFinal,
+    },
+    where: 'id = ?',
+    whereArgs: [id],
+  );
+}
+
+Future<int> createReservaEstado(int operacionId, int numero, String horaInicio, String horaFinal) async {
+  final db = await database;
+
+  return await db.insert(
+    'Estado',
+    {
+      'operacion_id': operacionId,
+      'numero': numero,
+      'estado': 'RESERVA',  // Valor fijo
+      'codigo': '401',      // Valor fijo
+      'hora_inicio': horaInicio,
+      'hora_final': horaFinal,
+    },
+    conflictAlgorithm: ConflictAlgorithm.replace,
+  );
+}
 
   Future<List<Map<String, dynamic>>> getEstadosByOperacionId(
       int operacionId) async {
@@ -1805,12 +2250,32 @@ await db.execute('''
   return List.generate(maps.length, (i) => TipoPerforacion.fromJson(maps[i]));
 }
 
+Future<List<TipoPerforacion>> getTiposPerforacionhorizontalfil() async {
+  final db = await database;
+  final List<Map<String, dynamic>> maps = await db.query(
+    'TipoPerforacion',
+    where: 'proceso = ? AND permitido_medicion = ?',  // Cambio aquí
+    whereArgs: ['PERFORACIÓN HORIZONTAL', 1],        // Cambio aquí
+  );
+  return List.generate(maps.length, (i) => TipoPerforacion.fromJson(maps[i]));
+}
+
   Future<List<TipoPerforacion>> getTiposPerforacionLargo() async {
   final db = await database;
   final List<Map<String, dynamic>> maps = await db.query(
     'TipoPerforacion',
     where: 'proceso = ?',
     whereArgs: ['PERFORACIÓN TALADROS LARGOS'],
+  );
+  return List.generate(maps.length, (i) => TipoPerforacion.fromJson(maps[i]));
+}
+
+  Future<List<TipoPerforacion>> getTiposPerforacionLargofil() async {
+  final db = await database;
+  final List<Map<String, dynamic>> maps = await db.query(
+    'TipoPerforacion',
+    where: 'proceso = ? AND permitido_medicion = ?',
+    whereArgs: ['PERFORACIÓN TALADROS LARGOS', 1],
   );
   return List.generate(maps.length, (i) => TipoPerforacion.fromJson(maps[i]));
 }
@@ -1986,7 +2451,7 @@ await db.execute('''
 
     final List<Map<String, dynamic>> interPerforacionesRaw =
         await db.rawQuery('''
-    SELECT id, codigo_actividad, nivel, tajo, nbroca, ntaladro, nbarras, 
+    SELECT id, codigo_actividad, nivel, tajo, nbroca, ntaladro, material, nbarras, 
            longitud_perforacion, angulo_perforacion, nfilas_de_hasta, 
            detalles_trabajo_realizado, perforaciontaladrolargo_id
     FROM InterPerforacionTaladroLargo
@@ -2012,32 +2477,28 @@ await db.execute('''
 
   Future<int> insertInterPerforacionTaladroLargo(
     int perforacionTaladroLargoId,
-    String codigoActividad,
     String nivel,
     String tajo,
-    int nbroca,
     int ntaladro,
     int nbarras,
     double longitudPerforacion,
-    double anguloPerforacion,
     String nfilasDeHasta,
     String detallesTrabajoRealizado,
+    String? material,
   ) async {
     final db = await database;
 
     return await db.insert(
       'InterPerforacionTaladroLargo',
       {
-        'codigo_actividad': codigoActividad,
         'nivel': nivel,
         'tajo': tajo,
-        'nbroca': nbroca,
         'ntaladro': ntaladro,
         'nbarras': nbarras,
         'longitud_perforacion': longitudPerforacion,
-        'angulo_perforacion': anguloPerforacion,
         'nfilas_de_hasta': nfilasDeHasta,
         'detalles_trabajo_realizado': detallesTrabajoRealizado,
+        'material': material,
         'perforaciontaladrolargo_id': perforacionTaladroLargoId,
       },
       conflictAlgorithm: ConflictAlgorithm.replace,
@@ -2060,7 +2521,7 @@ await db.execute('''
 
     final List<Map<String, dynamic>> interPerforacionesRaw =
         await db.rawQuery('''
-    SELECT id, codigo_actividad, nivel, labor, seccion_la_labor, nbroca, ntaladro, 
+    SELECT id, codigo_actividad, nivel, labor, seccion_la_labor, nbroca, ntaladro, material, metros_perforados,
            ntaladros_rimados, longitud_perforacion, detalles_trabajo_realizado, perforacionhorizontal_id
     FROM InterPerforacionHorizontal
     WHERE perforacionhorizontal_id = ?
@@ -2095,31 +2556,29 @@ await db.execute('''
 
   Future<int> insertInterPerforacionHorizontal(
     int perforacionHorizontalId,
-    String codigoActividad,
     String nivel,
     String labor,
-    String seccionLabor,
-    int nbroca,
     int ntaladro,
     int ntaladrosRimados,
     double longitudPerforacion,
+    double metrosPerforados,
     String detallesTrabajoRealizado,
+     String? material,
   ) async {
     final db = await database;
 
     return await db.insert(
       'InterPerforacionHorizontal',
       {
-        'codigo_actividad': codigoActividad,
         'nivel': nivel,
         'labor': labor,
-        'seccion_la_labor': seccionLabor,
-        'nbroca': nbroca,
         'ntaladro': ntaladro,
         'ntaladros_rimados': ntaladrosRimados,
         'longitud_perforacion': longitudPerforacion,
+        'metros_perforados': metrosPerforados,
         'detalles_trabajo_realizado': detallesTrabajoRealizado,
         'perforacionhorizontal_id': perforacionHorizontalId,
+        'material': material,
       },
       conflictAlgorithm: ConflictAlgorithm.replace,
     );
@@ -2132,8 +2591,8 @@ await db.execute('''
 
     final List<Map<String, dynamic>> interSostenimientosRaw =
         await db.rawQuery('''
-    SELECT id, codigo_actividad, nivel, labor, seccion_de_labor, nbroca, ntaladro, 
-           longitud_perforacion, malla_instalada, sostenimiento_id
+    SELECT id, codigo_actividad, nivel, labor, seccion_de_labor, nbroca, ntaladro, metros_perforados,
+           longitud_perforacion, malla_instalada, detalles_trabajo_realizado, material, sostenimiento_id
     FROM InterSostenimiento
     WHERE sostenimiento_id = ?
   ''', [sostenimientoId]);
@@ -2157,28 +2616,28 @@ await db.execute('''
 
   Future<int> insertInterSostenimiento(
     int sostenimientoId,
-    String codigoActividad,
     String nivel,
     String labor,
-    String seccionLabor,
-    int nbroca,
     int ntaladro,
     double longitudPerforacion,
     String mallaInstalada,
+    double metrosPerforados,
+    String? detallesTrabajoRealizado,
+  String? material,
   ) async {
     final db = await database;
 
     return await db.insert(
       'InterSostenimiento',
       {
-        'codigo_actividad': codigoActividad,
         'nivel': nivel,
         'labor': labor,
-        'seccion_de_labor': seccionLabor,
-        'nbroca': nbroca,
         'ntaladro': ntaladro,
         'longitud_perforacion': longitudPerforacion,
         'malla_instalada': mallaInstalada,
+        'metros_perforados': metrosPerforados,
+         'detalles_trabajo_realizado': detallesTrabajoRealizado,
+      'material': material,
         'sostenimiento_id': sostenimientoId,
       },
       conflictAlgorithm: ConflictAlgorithm.replace,
@@ -2205,6 +2664,16 @@ await db.execute('''
       whereArgs: [operacionId],
     );
   }
+
+  Future<List<Map<String, dynamic>>> getChecklistsByOperacion(
+    int operacionId) async {
+  final db = await database;
+  return await db.query(
+    'CheckListOperacion',
+    where: 'operacion_id = ?',
+    whereArgs: [operacionId],
+  );
+}
 
   Future<void> updateHorometro(Map<String, dynamic> horometro) async {
     final db = await database;
@@ -2285,6 +2754,31 @@ await db.execute('''
   }
 
 //-------------------------------------------------------------------
+  Future<Map<String, dynamic>?> getPlanMensualHori({
+    required String zona,
+    required String tipoLabor,
+    required String labor,
+    required String nivel,
+  }) async {
+    final db = await database;
+
+    List<Map<String, dynamic>> result = await db.query(
+      'PlanMensual',
+      columns: ['ancho_m', 'alto_m'], // Solo obtenemos estos campos
+      where:
+          'zona = ? AND tipo_labor = ? AND labor = ? AND nivel = ?',
+      whereArgs: [zona, tipoLabor, labor, nivel],
+    );
+
+    // Verificar si se encontraron resultados
+    if (result.isNotEmpty) {
+      return result
+          .first; // Retorna solo los campos requeridos del primer registro encontrado
+    } else {
+      return null; // No se encontraron registros que coincidan
+    }
+  }
+
   Future<Map<String, dynamic>?> getPlanMensual({
     required String zona,
     required String tipoLabor,
@@ -2577,6 +3071,47 @@ Future<int> actualizarEnvioMedicionesLargo(List<int> ids) async {
 
   //EXPLOSIVOS PARA MEDICIONES------------------------------------------
 
+  Future<List<Map<String, dynamic>>> obtenerExploracionesCompletasPorZona(String zona) async {
+  try {
+    final Database db = await database;
+    
+    // Obtener solo las exploraciones con medicion = 0 y la zona especificada
+    final List<Map<String, dynamic>> exploraciones = await db.query(
+      'nube_Datos_trabajo_exploraciones',
+      where: 'medicion = ? AND zona = ?',
+      whereArgs: [0, zona],
+      orderBy: 'fecha DESC, turno DESC',
+    );
+
+    if (exploraciones.isEmpty) return [];
+
+    List<Map<String, dynamic>> resultado = [];
+
+    for (var exploracion in exploraciones) {
+      // Crear un nuevo mapa mutable para la exploración
+      Map<String, dynamic> exploracionCompleta = Map<String, dynamic>.from(exploracion);
+      int exploracionId = exploracion['id'];
+      String idnube = exploracion['idnube']?.toString() ?? '';
+
+      // Obtener despachos relacionados
+      exploracionCompleta['despachos'] = await _obtenerDespachosPorExploracion(exploracionId);
+      
+      // Obtener devoluciones relacionadas
+      exploracionCompleta['devoluciones'] = await _obtenerDevolucionesPorExploracion(exploracionId);
+      
+      // Asegurar que idnube está incluido
+      exploracionCompleta['idnube'] = idnube;
+
+      resultado.add(exploracionCompleta);
+    }
+
+    return resultado;
+  } catch (e) {
+    print('Error al obtener exploraciones completas por zona: $e');
+    return [];
+  }
+}
+
 Future<List<Map<String, dynamic>>> obtenerExploracionesCompletas() async {
   try {
     final Database db = await database;
@@ -2697,6 +3232,127 @@ Future<List<Map<String, dynamic>>> obtenerTodasToneladas() async {
     orderBy: 'fecha DESC', // Ordenar por fecha descendente
   );
   return result;
+}
+
+//------------------------------------------------------------------CHECKLIST
+
+Future<List<Map<String, dynamic>>> getCheckListByProceso(String proceso) async {
+  final db = await database;
+  final result = await db.query(
+    'checklist_items',
+    where: 'proceso = ?',
+    whereArgs: [proceso],
+  );
+  return result;
+}
+
+Future<List<Map<String, dynamic>>> getAllCheckListItems() async {
+  final db = await database;
+  final result = await db.query('checklist_items');
+  return result;
+}
+
+
+//PDF-------------------------------------------------------------------------------------------------------------
+Future<Map<String, dynamic>?> getPdfByProceso({
+  required String proceso,
+  String? tipoLabor,
+  String? labor,
+  String? ala,
+}) async {
+  final db = await database;
+
+  String whereClause = 'proceso = ?';
+  List<dynamic> whereArgs = [proceso];
+
+  if (tipoLabor != null && tipoLabor.isNotEmpty) {
+    whereClause += ' AND tipo_labor = ?';
+    whereArgs.add(tipoLabor);
+  }
+
+  if (labor != null && labor.isNotEmpty) {
+    whereClause += ' AND labor = ?';
+    whereArgs.add(labor);
+  }
+
+  if (ala != null && ala.isNotEmpty) {
+    whereClause += ' AND ala = ?';
+    whereArgs.add(ala);
+  }
+
+  final List<Map<String, dynamic>> result = await db.query(
+    'PdfModel',
+    where: whereClause,
+    whereArgs: whereArgs,
+    limit: 1,
+  );
+
+  return result.isNotEmpty ? result.first : null;
+}
+
+//Estado por codigo-proceso----------------------------------------------------------------------------------
+
+Future<int?> getEstadoIdByCodigoAndProceso(String codigo, String proceso) async {
+  final db = await database; // ✅ Obtiene la instancia de la base de datos
+  final List<Map<String, dynamic>> result = await db.query(
+    'EstadostBD',
+    columns: ['id'], // solo necesitamos el id
+    where: 'codigo = ? AND proceso = ?',
+    whereArgs: [codigo, proceso],
+    limit: 1,
+  );
+
+  if (result.isNotEmpty) {
+    return result.first['id'] as int;
+  }
+  return null; // si no existe, devuelve null
+}
+
+Future<List<Map<String, dynamic>>> getSubEstadosByEstadoId(int estadoId) async {
+  final db = await database; // ✅ obtenemos la instancia de la BD
+  return await db.query(
+    'SubEstadoBD',
+    where: 'estadoId = ?',
+    whereArgs: [estadoId],
+  );
+}
+
+//ESTADOSSSS NUBEEEEEEEEEEEEEEEEEEEEE---------------------------------------------------------------------------------------------
+Future<int> insertarSubEstado(Database db, int estadoId, String codigo, String horaInicio) async {
+  return await db.insert(
+    'SubEstado',
+    {
+      'estado_id': estadoId,
+      'codigo': codigo,
+      'hora_inicio': horaInicio,
+      // no pasamos hora_final
+    },
+    conflictAlgorithm: ConflictAlgorithm.replace,
+  );
+}
+Future<Map<String, dynamic>?> getPrimerSubEstadoPorEstadoIdNube(Database db, int estadoId) async {
+  final List<Map<String, dynamic>> result = await db.query(
+    'SubEstado',
+    where: 'estado_id = ?',
+    whereArgs: [estadoId],
+    orderBy: 'id ASC', // el más antiguo
+    limit: 1,
+  );
+
+  return result.isNotEmpty ? result.first : null;
+}
+
+Future<int> actualizarSubEstado(Database db, int subEstadoId, String codigo, String horaInicio, String horaFinal) async {
+  return await db.update(
+    'SubEstado',
+    {
+      'codigo': codigo,
+      'hora_inicio': horaInicio,
+      'hora_final': horaFinal,
+    },
+    where: 'id = ?',
+    whereArgs: [subEstadoId],
+  );
 }
 
 

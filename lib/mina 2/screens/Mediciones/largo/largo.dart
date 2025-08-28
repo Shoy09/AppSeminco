@@ -13,8 +13,6 @@ class RegistroExplosivoPagelargo extends StatefulWidget {
 
 class _RegistroExplosivoPagelargoState
     extends State<RegistroExplosivoPagelargo> {
-  final TextEditingController mesController = TextEditingController();
-  final TextEditingController semanaController = TextEditingController();
   List<Map<String, dynamic>> exploraciones = [];
   List<Map<String, dynamic>> exploracionesFiltradas = [];
     List<Map<String, dynamic>> _exploraciones = [];
@@ -24,6 +22,10 @@ List<TipoPerforacion> _tiposPerforacion = [];
   Map<String, TextEditingController> controllers = {};
     List<Explosivo> _explosivos = [];
   Map<int, Map<String, dynamic>> registrosEditados = {};
+
+  
+final TextEditingController fechaController = TextEditingController();
+final TextEditingController turnoController = TextEditingController();
   // Función para calcular el número de semana ISO
   int _calcularSemanaISO(DateTime date) {
     final dayOfYear = _diaDelAnio(date);
@@ -63,8 +65,6 @@ List<Map<String, dynamic>> _toneladas = [];
   void initState() {
     super.initState();
     final now = DateTime.now();
-    mesController.text = meses[now.month - 1];
-    semanaController.text = _calcularSemanaISO(now).toString();
     _getTiposPerforacion();
     _cargarExploraciones();
     _cargarDatosExplosivos();
@@ -131,7 +131,7 @@ void _asignarToneladasAExploraciones() {
 Future<void> _getTiposPerforacion() async {
   try {
     final dbHelper = DatabaseHelper_Mina2();
-    _tiposPerforacion = await dbHelper.getTiposPerforacionLargo();
+    _tiposPerforacion = await dbHelper.getTiposPerforacionLargofil();
     print("Tipos de Perforación obtenidos de la BD local: $_tiposPerforacion");
     
     // Después de obtener los tipos, aplicar el filtro si ya tenemos las exploraciones
@@ -237,21 +237,6 @@ void _filtrarExploraciones() {
   });
 }
 
-  void borrarCampos() {
-    mesController.clear();
-    semanaController.clear();
-    setState(() {});
-  }
-
-  void buscarDatos() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-            'Filtrando datos para ${mesController.text}, semana ${semanaController.text}'),
-        duration: Duration(seconds: 2),
-      ),
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -279,58 +264,73 @@ void _filtrarExploraciones() {
           children: [
             // Filtros
             Row(
-              children: [
-                Flexible(
-                  flex: 3,
-                  child: DropdownButtonFormField<String>(
-                    value:
-                        mesController.text.isEmpty ? null : mesController.text,
-                    decoration: InputDecoration(
-                      labelText: 'Mes',
-                      border: OutlineInputBorder(),
-                      isDense: true,
-                    ),
-                    items: meses.map((String mes) {
-                      return DropdownMenuItem<String>(
-                        value: mes,
-                        child: Text(mes),
-                      );
-                    }).toList(),
-                    onChanged: (String? newValue) {
-                      setState(() {
-                        mesController.text = newValue ?? '';
-                      });
-                    },
-                  ),
-                ),
-                SizedBox(width: 8),
-                Flexible(
-                  flex: 1,
-                  child: TextField(
-                    controller: semanaController,
-                    keyboardType: TextInputType.number,
-                    inputFormatters: [
-                      FilteringTextInputFormatter.digitsOnly,
-                      LengthLimitingTextInputFormatter(2),
-                    ],
-                    decoration: InputDecoration(
-                      labelText: 'Semana',
-                      border: OutlineInputBorder(),
-                      isDense: true,
-                    ),
-                  ),
-                ),
-                SizedBox(width: 8),
-                ElevatedButton.icon(
-                  icon: Icon(Icons.search, size: 20),
-                  label: Text('Buscar'),
-                  onPressed: buscarDatos,
-                  style: ElevatedButton.styleFrom(
-                    padding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                  ),
-                ),
-              ],
-            ),
+  children: [
+    // Selector de fecha
+    Flexible(
+      flex: 3,
+      child: TextField(
+        controller: fechaController,
+        readOnly: true,
+        decoration: InputDecoration(
+          labelText: 'Fecha',
+          border: OutlineInputBorder(),
+          isDense: true,
+        ),
+        onTap: () async {
+          DateTime? pickedDate = await showDatePicker(
+            context: context,
+            initialDate: DateTime.now(),
+            firstDate: DateTime(2000),
+            lastDate: DateTime(2100),
+          );
+          if (pickedDate != null) {
+            setState(() {
+              fechaController.text =
+                  "${pickedDate.year}-${pickedDate.month.toString().padLeft(2, '0')}-${pickedDate.day.toString().padLeft(2, '0')}";
+            });
+          }
+        },
+      ),
+    ),
+    SizedBox(width: 8),
+    // Dropdown para turno
+    Flexible(
+      flex: 2,
+      child: DropdownButtonFormField<String>(
+        value: turnoController.text.isEmpty ? null : turnoController.text,
+        decoration: InputDecoration(
+          labelText: 'Turno',
+          border: OutlineInputBorder(),
+          isDense: true,
+        ),
+        items: ['Día', 'Noche'].map((String turno) {
+          return DropdownMenuItem<String>(
+            value: turno,
+            child: Text(turno),
+          );
+        }).toList(),
+        onChanged: (String? newValue) {
+          setState(() {
+            turnoController.text = newValue ?? '';
+          });
+        },
+      ),
+    ),
+    SizedBox(width: 8),
+    // Botón Buscar
+    ElevatedButton.icon(
+      icon: Icon(Icons.search, size: 20),
+      label: Text('Buscar'),
+      onPressed: () {
+        
+      }
+      ,
+      style: ElevatedButton.styleFrom(
+        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+      ),
+    ),
+  ],
+),
 
             SizedBox(height: 20),
 
@@ -365,15 +365,17 @@ void _filtrarExploraciones() {
                                     color: Colors.grey,
                                   ),
                                   columnWidths: const {
-                                    0: FlexColumnWidth(1.2),
+                                    0: FlexColumnWidth(
+                                        0.8),
                                     1: FlexColumnWidth(1.2),
                                     2: FlexColumnWidth(1.2),
-                                    3: FlexColumnWidth(1.4),
-                                    4: FlexColumnWidth(1.2),
-                                    5: FlexColumnWidth(1.3),
-                                    6: FlexColumnWidth(1.4),
-                                    7: FlexColumnWidth(1.3),
+                                    3: FlexColumnWidth(1.2),
+                                    4: FlexColumnWidth(1.4),
+                                    5: FlexColumnWidth(1.2),
+                                    6: FlexColumnWidth(1.3),
+                                    7: FlexColumnWidth(1.4),
                                     8: FlexColumnWidth(1.3),
+                                    9: FlexColumnWidth(1.3),
                                   },
                                   children: [
                                     // Encabezados de tabla
@@ -384,6 +386,7 @@ void _filtrarExploraciones() {
                                             top: Radius.circular(8)),
                                       ),
                                       children: [
+                                        tableCellBold(context, 'N°'),
                                         tableCellBold(context, 'FECHA'),
                                         tableCellBold(context, 'TURNO'),
                                         tableCellBold(context, 'EMPRESA'),
@@ -403,6 +406,7 @@ void _filtrarExploraciones() {
                                         i < _exploraciones.length;
                                         i++)
                                       TableRow(children: [
+                                        tableCell((i + 1).toString()),
                                         tableCell(_exploraciones[i]['fecha']
                                                 ?.toString() ??
                                             ''),
@@ -448,39 +452,41 @@ void _filtrarExploraciones() {
                               ),
                               SizedBox(height: 8),
                               // Botones de acción
-                              Padding(
-                                padding:
-                                    const EdgeInsets.symmetric(horizontal: 8.0),
-                                child: Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceEvenly,
-                                  children: [
-                                    ElevatedButton.icon(
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: Colors.red,
-                                        padding: EdgeInsets.symmetric(
-                                            horizontal: 16, vertical: 12),
-                                      ),
-                                      icon: Icon(Icons.delete, size: 18),
-                                      onPressed: borrarCampos,
-                                      label: Text('BORRAR'),
-                                    ),
-                                    SizedBox(width: 10),
-                                    ElevatedButton.icon(
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: Colors.green,
-                                        padding: EdgeInsets.symmetric(
-                                            horizontal: 16, vertical: 12),
-                                      ),
-                                      icon: Icon(Icons.send, size: 18),
-                                      label: Text('ENVIAR'),
-                                      onPressed: () async {
-                                      await insertarYActualizarMedicionesLargo();
-                                      },
-                                    ),
-                                  ],
-                                ),
-                              ),
+                              // Padding(
+                              //   padding:
+                              //       const EdgeInsets.symmetric(horizontal: 8.0),
+                              //   child: Row(
+                              //     mainAxisAlignment:
+                              //         MainAxisAlignment.spaceEvenly,
+                              //     children: [
+                              //       ElevatedButton.icon(
+                              //         style: ElevatedButton.styleFrom(
+                              //           backgroundColor: Colors.red,
+                              //           padding: EdgeInsets.symmetric(
+                              //               horizontal: 16, vertical: 12),
+                              //         ),
+                              //         icon: Icon(Icons.delete, size: 18),
+                              //         onPressed: () {
+                                        
+                              //         },
+                              //         label: Text('BORRAR'),
+                              //       ),
+                              //       SizedBox(width: 10),
+                              //       ElevatedButton.icon(
+                              //         style: ElevatedButton.styleFrom(
+                              //           backgroundColor: Colors.green,
+                              //           padding: EdgeInsets.symmetric(
+                              //               horizontal: 16, vertical: 12),
+                              //         ),
+                              //         icon: Icon(Icons.send, size: 18),
+                              //         label: Text('ENVIAR'),
+                              //         onPressed: () async {
+                              //         await insertarYActualizarMedicionesLargo();
+                              //         },
+                              //       ),
+                              //     ],
+                              //   ),
+                              // ),
                               SizedBox(height: 8),
                             ],
                           ),

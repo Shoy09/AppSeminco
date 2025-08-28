@@ -1,4 +1,5 @@
 import 'package:app_seminco/components/reportes/CompactReportButton%20.dart';
+import 'package:app_seminco/mina%201/screens/Mediciones/horizontal/select_tipo_pro_eje.dart';
 import 'package:app_seminco/mina%202/screens/Mediciones/horizontal/horizontal.dart';
 import 'package:app_seminco/mina%202/screens/Mediciones/largo/largo.dart';
 import 'package:app_seminco/mina%202/screens/Mediciones/prueba.dart';
@@ -60,7 +61,7 @@ class Selecc_Tipo_explo extends StatelessWidget {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => RegistroExplosivoPagehorizontal(),
+                          builder: (context) => Selecc_Tipo_pro_eje(),
                         ),
                       );
                     },

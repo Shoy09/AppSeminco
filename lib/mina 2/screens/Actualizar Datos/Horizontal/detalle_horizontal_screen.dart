@@ -87,85 +87,110 @@ void _handleItemTap(int index) {
 Future<void> _exportSelectedItems() async {
   if (selectedItems.isEmpty) return;
 
-  DatabaseHelper_Mina2 dbHelper = DatabaseHelper_Mina2();
-  List<Map<String, dynamic>> jsonDataList = []; // Cambio a List<Map>
+  final dbHelper = DatabaseHelper_Mina2();
+  final List<Map<String, dynamic>> jsonDataList = [];
 
-  for (var id in selectedItems) {
-    var operacion = operacionData.firstWhere((op) => op['id'] == id);
-    List<Map<String, dynamic>> estados = await dbHelper.getEstadosByOperacionId(id);
-    List<Map<String, dynamic>> perforaciones = await dbHelper.getPerforacionesTaladroHorizontal(id);
+  for (final id in selectedItems) {
+    // 1. Obtener datos básicos de la operación
+    final operacion = operacionData.firstWhere((op) => op['id'] == id);
+    
+    // 2. Obtener todos los elementos relacionados
+    final estados = await dbHelper.getEstadosByOperacionId(id);
+    final horometros = await dbHelper.getHorometrosByOperacion(id);
+    final checklists = await dbHelper.getChecklistsByOperacion(id);
 
-    List<Map<String, dynamic>> interPerforaciones = [];
-    for (var perforacion in perforaciones) {
-      int perforacionId = perforacion['id'];
-      List<Map<String, dynamic>> interData = await dbHelper.getInterPerforacionesHorizontal(perforacionId);
-      interPerforaciones.addAll(interData);
-    }
-
-    List<Map<String, dynamic>> horometros = await dbHelper.getHorometrosByOperacion(id);
-
-    Map<String, dynamic> operacionSinId = {
+    // 3. Preparar datos limpios de la operación
+    final operacionLimpia = {
       "turno": operacion['turno'],
       "equipo": operacion['equipo'],
       "codigo": operacion['codigo'],
       "empresa": operacion['empresa'],
       "fecha": operacion['fecha'],
       "tipo_operacion": operacion['tipo_operacion'],
-      "estado": operacion['estado']
+      "estado": operacion['estado'],
+      "envio": operacion['envio'] ?? 0
     };
 
-    List<Map<String, dynamic>> estadosLimpios = estados.map((estado) {
-      return {
+    // 4. Procesar estados con sus perforaciones horizontales
+    final estadosLimpios = <Map<String, dynamic>>[];
+    
+    for (final estado in estados) {
+      // Obtener perforaciones horizontales para este estado
+      final perforaciones = await dbHelper.getPerforacionesTaladroHorizontal(estado['id']);
+      
+      // Procesar cada perforación con sus interperforaciones
+      final perforacionesLimpias = <Map<String, dynamic>>[];
+      
+      for (final perforacion in perforaciones) {
+        final interPerforaciones = await dbHelper.getInterPerforacionesHorizontal(perforacion['id']);
+        
+        perforacionesLimpias.add({
+          "zona": perforacion['zona'],
+          "tipo_labor": perforacion['tipo_labor'],
+          "labor": perforacion['labor'],
+          "ala": perforacion['ala'],
+          "veta": perforacion['veta'],
+          "nivel": perforacion['nivel'],
+          "observacion": perforacion['observacion'],
+          "tipo_perforacion": perforacion['tipo_perforacion'],
+          "inter_perforaciones": interPerforaciones.map((ip) {
+            return {
+              "codigo_actividad": ip['codigo_actividad'],
+              "nivel": ip['nivel'],
+              "labor": ip['labor'],
+              "seccion_la_labor": ip['seccion_la_labor'],
+              "nbroca": ip['nbroca'],
+              "ntaladro": ip['ntaladro'],
+              "material": ip['material'],
+              "ntaladros_rimados": ip['ntaladros_rimados'],
+              "longitud_perforacion": ip['longitud_perforacion'],
+              "metros_perforados": ip['metros_perforados'] ?? 0.0,
+              "detalles_trabajo_realizado": ip['detalles_trabajo_realizado'] ?? ""
+            };
+          }).toList()
+        });
+      }
+
+      // Agregar estado con sus perforaciones horizontales
+      estadosLimpios.add({
         "numero": estado['numero'],
         "estado": estado['estado'],
         "codigo": estado['codigo'],
         "hora_inicio": estado['hora_inicio'],
-        "hora_final": estado['hora_final']
-      };
-    }).toList();
+        "hora_final": estado['hora_final'],
+        "perforaciones_horizontales": perforacionesLimpias // Anidadas bajo el estado
+      });
+    }
 
-    List<Map<String, dynamic>> perforacionesLimpias = perforaciones.map((perforacion) {
-      int pId = perforacion['id'];
-      return {
-        "zona": perforacion['zona'],
-        "tipo_labor": perforacion['tipo_labor'],
-        "labor": perforacion['labor'],
-        "ala": perforacion['ala'],
-        "veta": perforacion['veta'],
-        "nivel": perforacion['nivel'],
-        "tipo_perforacion": perforacion['tipo_perforacion'],
-        "inter_perforaciones": interPerforaciones
-            .where((ip) => ip['perforacionhorizontal_id'] == pId)
-            .map((ip) {
-              return {
-                "codigo_actividad": ip['codigo_actividad'],
-                "nivel": ip['nivel'],
-                "labor": ip['labor'],
-                "seccion_la_labor": ip['seccion_la_labor'],
-                "nbroca": ip['nbroca'],
-                "ntaladro": ip['ntaladro'],
-                "ntaladros_rimados": ip['ntaladros_rimados'],
-                "longitud_perforacion": ip['longitud_perforacion'],
-                "detalles_trabajo_realizado": ip['detalles_trabajo_realizado'] ?? ""
-              };
-            }).toList()
-      };
-    }).toList();
-
-    List<Map<String, dynamic>> horometrosLimpios = horometros.map((h) {
+    // 5. Procesar horómetros
+    final horometrosLimpios = horometros.map((h) {
       return {
         "nombre": h['nombre'],
         "inicial": h['inicial'],
-        "final": h['final']
+        "final": h['final'],
+        "EstaOP": h['EstaOP'] ?? 0,
+        "EstaINOP": h['EstaINOP'] ?? 0
       };
     }).toList();
 
+    // 6. Procesar checklists
+    final checklistsLimpios = checklists.map((c) {
+      return {
+        "descripcion": c['descripcion'],
+        "decision": c['decision'],
+        "observacion": c['observacion'],
+        "categoria": c['categoria']
+      };
+    }).toList();
+
+    // 7. Construir el objeto final de la operación
     jsonDataList.add({
       "local_id": id,
-      "operacion": operacionSinId,
-      "estados": estadosLimpios,
-      "perforaciones": perforacionesLimpias,
+      "idNube": operacion['idNube'] ?? 0,
+      "operacion": operacionLimpia,
+      "estados": estadosLimpios, // Con perforaciones horizontales anidadas
       "horometros": horometrosLimpios,
+      "checklists": checklistsLimpios,
     });
   }
 
@@ -190,7 +215,28 @@ Future<void> _showConfirmationDialog(List<Map<String, dynamic>> jsonDataList) as
                   const Text('¿Estás seguro de enviar estas operaciones?'),
                   const SizedBox(height: 10),
                   Text('Total: ${jsonDataList.length} operaciones'),
+                  const SizedBox(height: 20),
+                  const Text('Datos a enviar:', style: TextStyle(fontWeight: FontWeight.bold)),
                   const SizedBox(height: 10),
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.grey),
+                      borderRadius: BorderRadius.circular(5),
+                    ),
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          SelectableText(
+                            jsonString,
+                            style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),

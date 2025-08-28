@@ -1,3 +1,5 @@
+import 'package:app_seminco/mina%202/screens/ChecklistScreen.dart';
+import 'package:app_seminco/mina%202/screens/Largo/registro_perforacion_sreen_no_operativas.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:app_seminco/mina%202/models/Empresa.dart';
@@ -8,9 +10,10 @@ import 'package:app_seminco/database/database_helper_mina_2.dart';
 import 'registro_perforacion_sreen.dart';
 
 class ListaPerforacionScreen extends StatefulWidget {
-final String tipoOperacion;
-final String? rolUsuario; 
-  const ListaPerforacionScreen({Key? key, required this.tipoOperacion, this.rolUsuario })
+  final String tipoOperacion;
+  final String? rolUsuario;
+  const ListaPerforacionScreen(
+      {Key? key, required this.tipoOperacion, this.rolUsuario})
       : super(key: key);
 
   @override
@@ -34,23 +37,17 @@ class _ListaPerforacionScreenState extends State<ListaPerforacionScreen> {
   List<String> codigosFiltrados = [];
   List<String> empresas = [];
 
-  Future<List<Map<String, dynamic>>> _getPerforacionData() async {
-    if (operacionId != null) {
-      DatabaseHelper_Mina2 dbHelper = DatabaseHelper_Mina2();
-      List<Map<String, dynamic>> data =
-          await dbHelper.getPerforacionesTaladroLargo(operacionId!);
+  List<Map<String, String>> currentData = [];
+  List<Map<String, String>> currentDataDialog = [];
+  List<Map<String, dynamic>> estadosBD = [];
 
-      // Imprimir los datos recibidos para depurar
-      print('Datos recibidos en _getPerforacionData: $data');
-
-      return data;
-    } else {
-      WidgetsBinding.instance.addPostFrameCallback((_) {});
-
-      return []; // Retornamos una lista vacía en lugar de lanzar una excepción
-    }
-  }
-
+  final Map<String, List<Map<String, String>>> datadialog = {
+    'OPERATIVO': [],
+    'DEMORA': [],
+    'MANTENIMIENTO': [],
+    'RESERVA': [],
+    'FUERA DE PLAN': [],
+  };
   @override
   void initState() {
     super.initState();
@@ -59,8 +56,30 @@ class _ListaPerforacionScreenState extends State<ListaPerforacionScreen> {
     // Determinamos el turno automáticamente al iniciar
     selectedTurno = _getTurnoBasedOnTime();
     _fetchOperacionData(); // Hacemos la consulta
+    obtenerEstadosBD();
+  }
+
+  void obtenerEstadosBD() async {
+    estadosBD = await DatabaseHelper_Mina2().getEstadosBD(
+        widget.tipoOperacion); // 🔹 Pasamos tipoOperacion como proceso
     print(
-        "Tipo de operación recibida: ${widget.tipoOperacion}"); // ✅ Verifica que se reciba correctamente
+        "Estados obtenidos de la BDEstados para proceso '${widget.tipoOperacion}': $estadosBD");
+
+    // Limpiamos la lista antes de actualizar
+    datadialog.forEach((key, value) => value.clear());
+
+    // Agregar los estados filtrados a la lista correcta
+    for (var estado in estadosBD) {
+      String estadoPrincipal = estado['estado_principal'];
+      if (datadialog.containsKey(estadoPrincipal)) {
+        datadialog[estadoPrincipal]?.add({
+          "Nombre": estado['tipo_estado'],
+          "Código": estado['codigo'].toString(),
+        });
+      }
+    }
+
+    setState(() {}); // 🔹 Actualiza la UI con los nuevos datos
   }
 
   Future<void> _getEmpresas() async {
@@ -137,19 +156,20 @@ class _ListaPerforacionScreenState extends State<ListaPerforacionScreen> {
     }
   }
 
-Future<void> _fetchOperacionData() async {
-  if (selectedTurno != null && fechaActual.isNotEmpty) {
-    DatabaseHelper_Mina2 dbHelper = DatabaseHelper_Mina2();
-    List<Map<String, dynamic>> data;
-    
-    // Elegir la consulta adecuada según el rol
-    if (widget.rolUsuario == 'Master') {
-      data = await dbHelper.getOperacionByTurnoAndFechaMaster(
-          selectedTurno!, fechaActual, widget.tipoOperacion);
-    } else {
-      data = await dbHelper.getOperacionByTurnoAndFecha(
-          selectedTurno!, fechaActual, widget.tipoOperacion);
-    }
+  Future<void> _fetchOperacionData() async {
+    if (selectedTurno != null && fechaActual.isNotEmpty) {
+      DatabaseHelper_Mina2 dbHelper = DatabaseHelper_Mina2();
+      List<Map<String, dynamic>> data;
+
+      // Elegir la consulta adecuada según el rol
+      if (widget.rolUsuario == 'Master') {
+        data = await dbHelper.getOperacionByTurnoAndFechaMaster(
+            selectedTurno!, fechaActual, widget.tipoOperacion);
+      } else {
+        data = await dbHelper.getOperacionByTurnoAndFecha(
+            selectedTurno!, fechaActual, widget.tipoOperacion);
+      }
+
       // Imprime los datos recibidos
       print('Datos recibidos de la base de datos: $data');
 
@@ -167,23 +187,26 @@ Future<void> _fetchOperacionData() async {
         });
       } else {
         setState(() {
-        operacionId = null; // Asegurar que se establezca a null cuando no hay datos
-        selectedEquipo = null;
-        selectedCodigo = null;
-        selectedEmpresa = null;
-        estado = null;
-        foundData = false;
-        showCreateButton = true;
-        codigosFiltrados = [];
-      });
+          operacionId =
+              null; // Asegurar que se establezca a null cuando no hay datos
+          selectedEquipo = null;
+          selectedCodigo = null;
+          selectedEmpresa = null;
+          estado = null;
+          foundData = false;
+          showCreateButton = true;
+          codigosFiltrados = [];
+        });
+      }
+
+      // Llamar a fetchEstados en ambos casos
+      fetchEstados();
     }
   }
-}
 
 void mostrarDialogoCerrarRegistro(BuildContext context, int? operacionId, String turno, {
-  required VoidCallback onRegistroCerrado, // Nuevo parámetro callback
-}
-)async {
+  required VoidCallback onRegistroCerrado,
+}) async {
   DatabaseHelper_Mina2 dbHelper = DatabaseHelper_Mina2();
 
   List<Map<String, dynamic>> estados = await dbHelper.getEstadosByOperacionId(operacionId!);
@@ -232,14 +255,27 @@ void mostrarDialogoCerrarRegistro(BuildContext context, int? operacionId, String
           ),
           TextButton(
             onPressed: () async {
-              // 1. Verifica y actualiza la hora_final si es necesario
-              if (ultimoEstado['hora_final'] == null || ultimoEstado['hora_final'].toString().isEmpty) {
-                String horaFinal = (turno == 'DÍA') ? '19:00' : '07:00';
-                await dbHelper.actualizarHoraFinal(ultimoEstado['id'], horaFinal);
-              }
+              // 1. Determinar hora de inicio para el estado RESERVA
+              String horaReservaInicio = (turno == 'DÍA') ? '17:30' : '05:30';
+              
+              // 2. Actualizar hora_final del último estado actual
+              await dbHelper.actualizarHoraFinal(ultimoEstado['id'], horaReservaInicio);
+              
+              // 3. Crear nuevo estado RESERVA (401)
+              int newNumber = estados.isNotEmpty 
+                  ? (estados.last['numero'] as int) + 1 
+                  : 1;
+              
+              await dbHelper.createReservaEstado(
+                operacionId!,
+                newNumber,
+                horaReservaInicio,
+                (turno == 'DÍA') ? '19:00' : '07:00', // Hora final según turno
+              );
 
-              // 2. Luego cierra la operación
+              // 4. Cerrar la operación
               await dbHelper.cerrarOperacion(operacionId!);
+              
               Navigator.of(context).pop();
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
@@ -247,12 +283,11 @@ void mostrarDialogoCerrarRegistro(BuildContext context, int? operacionId, String
                   backgroundColor: Colors.green,
                 ),
               );
-              // 3. Recargar la pantalla completa
-               // 3. Limpiar completamente los datos y recargar
+              
+              // 5. Limpiar y recargar
               if (mounted) {
                 setState(() {
-                  // Limpiar todos los seleccionados
-                  selectedTurno = _getTurnoBasedOnTime(); // Mantener el turno automático
+                  selectedTurno = _getTurnoBasedOnTime();
                   selectedEquipo = null;
                   selectedCodigo = null;
                   selectedEmpresa = null;
@@ -260,7 +295,7 @@ void mostrarDialogoCerrarRegistro(BuildContext context, int? operacionId, String
                   estado = null;
                   foundData = false;
                   showCreateButton = true;
-                  codigosFiltrados = []; // Limpiar códigos filtrados
+                  codigosFiltrados = [];
                 });
                 _getEquipos(widget.tipoOperacion);
                 _getEmpresas();
@@ -275,191 +310,210 @@ void mostrarDialogoCerrarRegistro(BuildContext context, int? operacionId, String
     },
   );
 }
+  void showHorometroDialog(
+      BuildContext context, int operacionId, String estado) async {
+    DatabaseHelper_Mina2 dbHelper = DatabaseHelper_Mina2();
+    List<Map<String, dynamic>> horometros =
+        (await dbHelper.getHorometrosByOperacion(operacionId))
+            .map((map) => Map<String, dynamic>.from(map))
+            .toList(); // Convertir a lista mutable
 
-  void showHorometroDialog(BuildContext context, int operacionId, String estado) async {
-  DatabaseHelper_Mina2 dbHelper = DatabaseHelper_Mina2();
-  List<Map<String, dynamic>> horometros =
-      (await dbHelper.getHorometrosByOperacion(operacionId))
-          .map((map) => Map<String, dynamic>.from(map))
-          .toList(); // Convertir a lista mutable
+    bool isEditable =
+        estado.toLowerCase() != "cerrado"; // Determinar si es editable
 
-  bool isEditable = estado.toLowerCase() != "cerrado"; // Determinar si es editable
-
-  showDialog(
-    context: context,
-    builder: (context) {
-      return StatefulBuilder(
-        builder: (context, setState) {
-          return Dialog(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16.0),
-            ),
-            child: Container(
-              width: MediaQuery.of(context).size.width * 0.8,
-              height: MediaQuery.of(context).size.height * 0.7,
-              padding: EdgeInsets.all(16.0),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text("Horómetro",
-                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-                  SizedBox(height: 16),
-                  Expanded(
-                    child: SingleChildScrollView(
-                      child: Table(
-                        border: TableBorder.all(),
-                        columnWidths: const {
-                          0: FlexColumnWidth(2),
-                          1: FlexColumnWidth(2),
-                          2: FlexColumnWidth(2),
-                          3: FlexColumnWidth(1),
-                          4: FlexColumnWidth(1),
-                        },
-                        children: [
-                          TableRow(
-                            decoration: BoxDecoration(color: Colors.grey[300]),
-                            children: [
-                              _buildTableCell("Nombre", isHeader: true),
-                              _buildTableCell("Inicial", isHeader: true),
-                              _buildTableCell("Final", isHeader: true),
-                              _buildTableCell("OP", isHeader: true),
-                              _buildTableCell("INOP", isHeader: true),
-                            ],
-                          ),
-                          for (int i = 0; i < horometros.length; i++)
+    showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return Dialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16.0),
+              ),
+              child: Container(
+                width: MediaQuery.of(context).size.width * 0.8,
+                height: MediaQuery.of(context).size.height * 0.7,
+                padding: EdgeInsets.all(16.0),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text("Horómetro",
+                        style: TextStyle(
+                            fontSize: 20, fontWeight: FontWeight.bold)),
+                    SizedBox(height: 16),
+                    Expanded(
+                      child: SingleChildScrollView(
+                        child: Table(
+                          border: TableBorder.all(),
+                          columnWidths: const {
+                            0: FlexColumnWidth(2),
+                            1: FlexColumnWidth(2),
+                            2: FlexColumnWidth(2),
+                            3: FlexColumnWidth(1),
+                            4: FlexColumnWidth(1),
+                          },
+                          children: [
                             TableRow(
+                              decoration:
+                                  BoxDecoration(color: Colors.grey[300]),
                               children: [
-                                _buildTableCell(horometros[i]["nombre"]),
-                                _buildEditableCell(
-                                  horometros[i]["inicial"],
-                                  isEditable,
-                                  (value) {
-                                    horometros[i]["inicial"] = _parseDouble(value);
-                                  },
-                                ),
-                                _buildEditableCell(
-                                  horometros[i]["final"],
-                                  isEditable,
-                                  (value) {
-                                    horometros[i]["final"] = _parseDouble(value);
-                                  },
-                                ),
-                                _buildCheckboxCell(
-                                  horometros[i]["EstaOP"],
-                                  isEditable,
-                                  (value) {
-                                    setState(() {
-                                      horometros[i]["EstaOP"] = value ? 1 : 0;
-                                    });
-                                  },
-                                ),
-                                _buildCheckboxCell(
-                                  horometros[i]["EstaINOP"],
-                                  isEditable,
-                                  (value) {
-                                    setState(() {
-                                      horometros[i]["EstaINOP"] = value ? 1 : 0;
-                                    });
-                                  },
-                                ),
+                                _buildTableCell("Nombre", isHeader: true),
+                                _buildTableCell("Inicial", isHeader: true),
+                                _buildTableCell("Final", isHeader: true),
+                                _buildTableCell("OP", isHeader: true),
+                                _buildTableCell("INOP", isHeader: true),
                               ],
                             ),
-                        ],
+                            for (int i = 0; i < horometros.length; i++)
+                              TableRow(
+                                children: [
+                                  _buildTableCell(horometros[i]["nombre"]),
+                                  _buildEditableCell(
+                                    horometros[i]["inicial"],
+                                    isEditable,
+                                    (value) {
+                                      horometros[i]["inicial"] =
+                                          _parseDouble(value);
+                                    },
+                                  ),
+                                  _buildEditableCell(
+                                    horometros[i]["final"],
+                                    isEditable,
+                                    (value) {
+                                      horometros[i]["final"] =
+                                          _parseDouble(value);
+                                    },
+                                  ),
+                                  _buildCheckboxCell(
+                                    horometros[i]["EstaOP"],
+                                    isEditable,
+                                    (value) {
+                                      setState(() {
+                                        horometros[i]["EstaOP"] = value ? 1 : 0;
+                                      });
+                                    },
+                                  ),
+                                  _buildCheckboxCell(
+                                    horometros[i]["EstaINOP"],
+                                    isEditable,
+                                    (value) {
+                                      setState(() {
+                                        horometros[i]["EstaINOP"] =
+                                            value ? 1 : 0;
+                                      });
+                                    },
+                                  ),
+                                ],
+                              ),
+                          ],
+                        ),
                       ),
                     ),
-                  ),
-                  SizedBox(height: 16),
-                  ElevatedButton(
-                    onPressed: isEditable ? () async {
-                      List<int> errores = [];
-                      for (int i = 0; i < horometros.length; i++) {
-                        if (horometros[i]["final"] < horometros[i]["inicial"]) {
-                          errores.add(i);
-                        }
-                      }
+                    SizedBox(height: 16),
+                    ElevatedButton(
+  onPressed: isEditable ? () async {
+    List<int> errores = [];
 
-                      if (errores.isNotEmpty) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text("Error en filas: ${errores.map((i) => i + 1).join(", ")}"),
-                            backgroundColor: Colors.red,
-                            duration: Duration(seconds: 3),
-                          ),
-                        );
-                        return;
-                      }
+    for (int i = 0; i < horometros.length; i++) {
+      final inicial = horometros[i]["inicial"];
+      final finalHoro = horometros[i]["final"];
 
-                      for (var horometro in horometros) {
-                        await dbHelper.updateHorometro(horometro);
-                      }
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text("Horómetros guardados correctamente"),
-                          backgroundColor: Colors.green,
-                          duration: Duration(seconds: 2),
-                        ),
-                      );
-                      Navigator.pop(context);
-                    } : null,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: isEditable ? Color(0xFF21899C) : Colors.grey,
-                      padding: EdgeInsets.symmetric(vertical: 12, horizontal: 24),
-                    ),
-                    child: Text("Guardar", style: TextStyle(color: Colors.white)),
-                  ),
-                ],
-              ),
-            ),
-          );
-        },
+      // Si el final NO está vacío ni nulo ni cero, validar que sea mayor
+      if (finalHoro != null && finalHoro != 0 && finalHoro <= inicial) {
+        errores.add(i);
+      }
+    }
+
+    if (errores.isNotEmpty) {
+      debugPrint("Errores en filas: ${errores.map((i) => i + 1).join(", ")}");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Error en filas: ${errores.map((i) => i + 1).join(", ")}"),
+          backgroundColor: Colors.red,
+          duration: Duration(seconds: 3),
+        ),
       );
-    },
-  );
-}
+      return;
+    }
 
-Widget _buildTableCell(String text, {bool isHeader = false}) {
-  return Padding(
-    padding: EdgeInsets.all(8.0),
-    child: Text(
-      text,
-      style: TextStyle(fontWeight: isHeader ? FontWeight.bold : FontWeight.normal),
-    ),
-  );
-}
+    // Guardar datos
+    for (var horometro in horometros) {
+      await dbHelper.updateHorometro(horometro);
+    }
 
-Widget _buildEditableCell(dynamic value, bool isEditable, Function(String) onChanged) {
-  String formattedValue = (value == 0.0)
-      ? "" // Si es 0.0, mostrar vacío
-      : (value % 1 == 0) 
-          ? value.toInt().toString() // Si es entero, quitar decimales
-          : value.toString(); // Si tiene decimales, mostrar completo
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text("Horómetros guardados correctamente"),
+        backgroundColor: Colors.green,
+        duration: Duration(seconds: 2),
+      ),
+    );
+    Navigator.pop(context);
+  } : null,
+  style: ElevatedButton.styleFrom(
+    backgroundColor: isEditable ? Color(0xFF21899C) : Colors.grey,
+    padding: EdgeInsets.symmetric(vertical: 12, horizontal: 24),
+  ),
+  child: Text("Guardar", style: TextStyle(color: Colors.white)),
+)
 
-  return Padding(
-    padding: EdgeInsets.all(8.0),
-    child: TextFormField(
-      initialValue: formattedValue,
-      keyboardType: TextInputType.number,
-      enabled: isEditable,
-      onChanged: onChanged,
-      decoration: InputDecoration(border: InputBorder.none),
-    ),
-  );
-}
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
 
-Widget _buildCheckboxCell(int value, bool isEditable, Function(bool) onChanged) {
-  return Padding(
-    padding: EdgeInsets.all(8.0),
-    child: Checkbox(
-      value: value == 1,
-      onChanged: isEditable ? (bool? newValue) => onChanged(newValue ?? false) : null,
-    ),
-  );
-}
+  Widget _buildTableCell(String text, {bool isHeader = false}) {
+    return Padding(
+      padding: EdgeInsets.all(8.0),
+      child: Text(
+        text,
+        style: TextStyle(
+            fontWeight: isHeader ? FontWeight.bold : FontWeight.normal),
+      ),
+    );
+  }
 
-double _parseDouble(String value) {
-  return double.tryParse(value) ?? 0.0;
-}
+  Widget _buildEditableCell(
+      dynamic value, bool isEditable, Function(String) onChanged) {
+    String formattedValue = (value == 0.0)
+        ? "" // Si es 0.0, mostrar vacío
+        : (value % 1 == 0)
+            ? value.toInt().toString() // Si es entero, quitar decimales
+            : value.toString(); // Si tiene decimales, mostrar completo
 
+    return Padding(
+      padding: EdgeInsets.all(8.0),
+      child: TextFormField(
+        initialValue: formattedValue,
+        keyboardType: TextInputType.number,
+        enabled: isEditable,
+        onChanged: onChanged,
+        decoration: InputDecoration(border: InputBorder.none),
+      ),
+    );
+  }
+
+  Widget _buildCheckboxCell(
+      int value, bool isEditable, Function(bool) onChanged) {
+    return Padding(
+      padding: EdgeInsets.all(8.0),
+      child: Checkbox(
+        value: value == 1,
+        onChanged: isEditable
+            ? (bool? newValue) => onChanged(newValue ?? false)
+            : null,
+      ),
+    );
+  }
+
+  double _parseDouble(String value) {
+    return double.tryParse(value) ?? 0.0;
+  }
 
   // Callback para actualizar los datos
   void _refreshData() {
@@ -468,252 +522,186 @@ double _parseDouble(String value) {
 
   @override
   Widget build(BuildContext context) {
+    var codigoOperativos = currentData;
     return Scaffold(
       appBar: AppBar(
         title: Text('Operación: ${widget.tipoOperacion}'),
         backgroundColor: Color(0xFF21899C),
       ),
-      body: Column(
-        children: [
-          // Card añadida arriba del botón
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Card(
-              elevation: 3,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(12.0),
-                child: Wrap(
-                  spacing: 10,
-                  runSpacing: 10,
-                  alignment: WrapAlignment.spaceBetween,
-                  children: [
-                    _buildDropdown("Turno", turnos, selectedTurno, (value) {
-                      setState(() {
-                        selectedTurno = value;
-                      });
-                    }),
-                    _buildDropdown("Equipo", equipos, selectedEquipo, (value) {
-                      setState(() {
-                        selectedEquipo = value;
-                        _filtrarCodigosPorEquipo(value!);
-                      });
-                    }),
-                    _buildDropdown("Código", codigosFiltrados, selectedCodigo,
-                        (value) {
-                      setState(() {
-                        selectedCodigo = value;
-                      });
-                    }),
-                    _buildDropdown("Empresa", empresas, selectedEmpresa,
-                        (value) {
-                      setState(() {
-                        selectedEmpresa = value;
-                      });
-                    }),
-                    _buildReadOnlyField("Fecha", fechaActual),
-
-                    SizedBox(height: 20), // Un poco de espacio antes del botón
-
-                    if (showCreateButton)
-                      Align(
-                        alignment: Alignment.center,
-                        child: ElevatedButton(
-                          onPressed: () async {
-                            // Verificar si hay algún valor no seleccionado
-                            if (selectedTurno == null ||
-                                selectedEquipo == null ||
-                                selectedCodigo == null ||
-                                selectedEmpresa == null) {
-                              // Si falta algún valor, mostrar un mensaje de advertencia
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(
-                                      'Por favor, selecciona todos los campos antes de crear la operación.'),
-                                  backgroundColor: Colors.blue,
-                                ),
-                              );
-                              return; // Detenemos la ejecución si falta algún dato
-                            }
-
-                            // Si todos los valores están seleccionados, continuamos con la inserción
-                            String turno =
-                                selectedTurno!; // No es necesario poner valor predeterminado, ya que ya hemos verificado que no es null
-                            String equipo =
-                                selectedEquipo!; // Lo mismo para equipo
-                            String codigo = selectedCodigo!;
-                            String empresa =
-                                selectedEmpresa!; // Lo mismo para empresa
-                            String fecha = fechaActual;
-
-                            String tipoOperacion = widget.tipoOperacion;
-
-                            // Llamamos a la función para insertar la operación
-                            int id = await DatabaseHelper_Mina2().insertOperacion(
-                                turno,
-                                equipo,
-                                codigo,
-                                empresa,
-                                fecha,
-                                tipoOperacion);
-
-                            if (id > 0) {
-                              // Si la operación fue creada correctamente, puedes mostrar un mensaje de éxito
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text('Operación creada con éxito'),
-                                  backgroundColor: Colors
-                                      .green, // Cambia el color de fondo a verde
-                                ),
-                              );
-                              await _fetchOperacionData();
-                            } else {
-                              // Si ocurrió un error, muestra un mensaje de error
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text('Error al crear la operación'),
-                                  backgroundColor: Colors.red,
-                                ),
-                              );
-                            }
-                          },
-                          child: Text("Crear"),
-                        ),
-                      ),
-                  ],
+      body: SingleChildScrollView(
+        // Añadido para manejar el desplazamiento
+        child: Column(
+          children: [
+            // Card con los campos de selección
+            Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Card(
+                elevation: 3,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
                 ),
-              ),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                ElevatedButton(
-                  onPressed: (estado == "cerrado")
-                      ? null
-                      : () {
-                          showDialog(
-                            context: context,
-                            builder: (BuildContext context) {
-                              return Dialog(
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(16),
-                                ),
-                                child: Container(
-                                  width: 700,
-                                  height: 800,
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 8.0, vertical: 10.0),
-                                  decoration: BoxDecoration(
-                                    border: Border.all(
-                                        color: Colors.blue, width: 2),
-                                    borderRadius: BorderRadius.circular(16),
+                child: Padding(
+                  padding: const EdgeInsets.all(12.0),
+                  child: Wrap(
+                    spacing: 10,
+                    runSpacing: 10,
+                    alignment: WrapAlignment.spaceBetween,
+                    children: [
+                      _buildReadOnlyField("Fecha", fechaActual),
+                      _buildDropdown("Turno", turnos, selectedTurno, (value) {
+                        setState(() {
+                          selectedTurno = value;
+                        });
+                      }),
+                      _buildDropdown("Equipo", equipos, selectedEquipo,
+                          (value) {
+                        setState(() {
+                          selectedEquipo = value;
+                          _filtrarCodigosPorEquipo(value!);
+                        });
+                      }),
+                      _buildDropdown("Código", codigosFiltrados, selectedCodigo,
+                          (value) {
+                        setState(() {
+                          selectedCodigo = value;
+                        });
+                      }),
+                      _buildDropdown("Empresa", empresas, selectedEmpresa,
+                          (value) {
+                        setState(() {
+                          selectedEmpresa = value;
+                        });
+                      }),
+                      SizedBox(height: 20),
+                      if (showCreateButton)
+                        Align(
+                          alignment: Alignment.center,
+                          child: ElevatedButton(
+                            onPressed: () async {
+                              if (selectedTurno == null ||
+                                  selectedEquipo == null ||
+                                  selectedCodigo == null ||
+                                  selectedEmpresa == null) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                        'Por favor, selecciona todos los campos antes de crear la operación.'),
+                                    backgroundColor: Colors.blue,
                                   ),
-                                  child: RegistroPerforacionScreen(
-                                      onDataInserted:
-                                          _refreshData, // Pasa el callback para refrescar los datos
-                                      operacionId:
-                                          operacionId, // Pasar operacionId
-                                      tipoOperacion: widget.tipoOperacion),
-                                ),
-                              );
-                            },
-                          );
-                        },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor:
-                        (estado == "cerrado") ? Colors.grey : Color(0xFF21899C),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    padding: EdgeInsets.symmetric(vertical: 16, horizontal: 20),
-                    textStyle: TextStyle(fontSize: 16),
-                  ),
-                  child: Text(
-                    "Ingresar registro",
-                    style: TextStyle(color: Colors.white), // Siempre en blanco
-                  ),
-                ),
-              ],
-            ),
-          ),
+                                );
+                                return;
+                              }
 
-          // Tabla con scroll y mejoras visuales
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  return Container(
-                    width: constraints.maxWidth,
-                    child: SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: ConstrainedBox(
-                        constraints: BoxConstraints(
-                          minWidth: constraints.maxWidth,
-                        ),
-                        child: SingleChildScrollView(
-                          child: FutureBuilder<List<Map<String, dynamic>>>(
-                            future: _getPerforacionData(),
-                            builder: (context, snapshot) {
-                              if (snapshot.connectionState ==
-                                  ConnectionState.waiting) {
-                                return Center(
-                                    child: CircularProgressIndicator());
-                              } else if (snapshot.hasError) {
-                                print(
-                                    'Error al cargar datos: ${snapshot.error}');
-                                return Center(
-                                    child: Text('Error al cargar datos.'));
-                              } else if (!snapshot.hasData ||
-                                  snapshot.data!.isEmpty) {
-                                return Center(
-                                    child: Text('No hay datos disponibles.'));
+                              String turno = selectedTurno!;
+                              String equipo = selectedEquipo!;
+                              String codigo = selectedCodigo!;
+                              String empresa = selectedEmpresa!;
+                              String fecha = fechaActual;
+                              String tipoOperacion = widget.tipoOperacion;
+
+                              List<Map<String, dynamic>> checklistItems =
+    await DatabaseHelper_Mina2()
+        .getCheckListByProceso(tipoOperacion);
+
+print("Checklist items para $tipoOperacion: $checklistItems");
+
+                              int id = await DatabaseHelper_Mina2().insertOperacion(
+  turno,
+  equipo,
+  codigo,
+  empresa,
+  fecha,
+  tipoOperacion,
+  checklistItems, // ✅ PASA LOS checklistItems aquí
+);
+
+
+                              if (id > 0) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text('Operación creada con éxito'),
+                                    backgroundColor: Colors.green,
+                                  ),
+                                );
+                                await _fetchOperacionData();
                               } else {
-                                return DataTable(
-                                  headingRowColor:
-                                      MaterialStateProperty.resolveWith(
-                                    (states) => Colors.blue.shade200,
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content:
+                                        Text('Error al crear la operación'),
+                                    backgroundColor: Colors.red,
                                   ),
-                                  columnSpacing: 16,
-                                  horizontalMargin: 16,
-                                  dataRowHeight: 60,
-                                  border: TableBorder(
-                                    horizontalInside:
-                                        BorderSide(color: Colors.grey.shade300),
-                                    verticalInside:
-                                        BorderSide(color: Colors.grey.shade300),
-                                    top:
-                                        BorderSide(color: Colors.grey.shade400),
-                                    bottom:
-                                        BorderSide(color: Colors.grey.shade400),
-                                    left:
-                                        BorderSide(color: Colors.grey.shade400),
-                                    right:
-                                        BorderSide(color: Colors.grey.shade400),
-                                  ),
-                                  columns: _buildColumns(),
-                                  rows: _buildDataRows(snapshot.data!),
                                 );
                               }
                             },
+                            child: Text("Crear"),
                           ),
                         ),
-                      ),
-                    ),
-                  );
-                },
+                    ],
+                  ),
+                ),
               ),
             ),
-          ),
-        ],
+
+            // Sección de botones de estado y tabla
+            Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Column(
+                children: [
+                  // Botones de estado
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        _buildStateButton(
+                            'OPERATIVO', Colors.green, codigoOperativos),
+                        SizedBox(width: 10),
+                        _buildStateButton(
+                            'DEMORA', Colors.yellow, codigoOperativos),
+                        SizedBox(width: 10),
+                        _buildStateButton(
+                            'MANTENIMIENTO', Colors.red, codigoOperativos),
+                        SizedBox(width: 10),
+                        _buildStateButton(
+                            'RESERVA', Colors.orange, codigoOperativos),
+                        SizedBox(width: 10),
+                        _buildStateButton(
+                            'FUERA DE PLAN', Colors.blue, codigoOperativos),
+                      ],
+                    ),
+                  ),
+                  SizedBox(height: 20),
+
+                  // Tabla de códigos - Removido el Expanded y añadido un Container con altura fija
+                  Container(
+                    height: MediaQuery.of(context).size.height *
+                        0.5, // 50% de la altura de la pantalla
+                    color: Colors.white,
+                    padding: EdgeInsets.all(10),
+                    child: SingleChildScrollView(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(child: _buildCodigoTable()),
+                              SizedBox(width: 20),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
 
-      // Botón fijo en la parte inferior
+      // Botones de navegación inferiores
       bottomNavigationBar: Padding(
         padding: const EdgeInsets.all(12.0),
         child: Row(
@@ -728,11 +716,9 @@ double _parseDouble(String value) {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => EstadoRegistroPerforacionScreen(
-                          turno: selectedTurno!,
-                          operacionId: operacionId!,
-                          tipoOperacion: widget.tipoOperacion,
-                          estado: estado!),
+                      builder: (context) => ChecklistScreen(
+                        operacionId: operacionId!,
+                      ),
                     ),
                   );
                 } else {
@@ -753,13 +739,13 @@ double _parseDouble(String value) {
                 padding: EdgeInsets.symmetric(vertical: 16, horizontal: 20),
                 textStyle: TextStyle(fontSize: 16),
               ),
-              child: Text("Estados", style: TextStyle(color: Colors.white)),
+              child: Text("CheckList", style: TextStyle(color: Colors.white)),
             ),
+            
             ElevatedButton(
               onPressed: () {
                 if (operacionId != null) {
-                  showHorometroDialog(context, operacionId!,
-                      estado!); // 🔹 Pasar el estado al diálogo
+                  showHorometroDialog(context, operacionId!, estado!);
                 } else {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
@@ -782,10 +768,15 @@ double _parseDouble(String value) {
             ),
             ElevatedButton(
               onPressed: estado == 'cerrado'
-                  ? null // 🔹 Deshabilita el botón si el estado es "cerrado"
+                  ? null
                   : () {
                       if (operacionId != null) {
-                        mostrarDialogoCerrarRegistro(context, operacionId!, selectedTurno ?? '', onRegistroCerrado: _refreshData, );
+                        mostrarDialogoCerrarRegistro(
+                          context,
+                          operacionId!,
+                          selectedTurno ?? '',
+                          onRegistroCerrado: _refreshData,
+                        );
                       } else {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
@@ -796,10 +787,8 @@ double _parseDouble(String value) {
                       }
                     },
               style: ElevatedButton.styleFrom(
-                backgroundColor: estado == 'cerrado'
-                    ? Colors.grey
-                    : Color(
-                        0xFF21899C), // 🔹 Cambia el color si está deshabilitado
+                backgroundColor:
+                    estado == 'cerrado' ? Colors.grey : Color(0xFF21899C),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8),
                 ),
@@ -839,229 +828,871 @@ double _parseDouble(String value) {
     );
   }
 
-Widget _buildReadOnlyField(String label, String value) {
-  return Container(
-    width: 160,
-    child: InkWell(
-      onTap: foundData 
-          ? null  // Deshabilita el tap si hay datos
-          : () => _selectDate(context),
-      child: InputDecorator(
-        decoration: InputDecoration(
-          labelText: label,
-          suffixIcon: Icon(Icons.calendar_today, size: 18),
+  Widget _buildReadOnlyField(String label, String value) {
+    return Container(
+      width: 160,
+      child: InkWell(
+        onTap: foundData
+            ? null // Deshabilita el tap si hay datos
+            : () => _selectDate(context),
+        child: InputDecorator(
+          decoration: InputDecoration(
+            labelText: label,
+            suffixIcon: Icon(Icons.calendar_today, size: 18),
+          ),
+          child: Text(value),
         ),
-        child: Text(value),
       ),
-    ),
-  );
-}
-
-Future<void> _selectDate(BuildContext context) async {
-  final DateTime? picked = await showDatePicker(
-    context: context,
-    initialDate: DateTime.now(),
-    firstDate: DateTime(2000),
-    lastDate: DateTime(2101),
-  );
-  
-  if (picked != null && picked != DateTime.parse(fechaActual)) {
-    setState(() {
-      fechaActual = DateFormat('yyyy-MM-dd').format(picked);
-      _fetchOperacionData(); // Actualizar datos con la nueva fecha
-    });
-  }
-}
-
-  List<DataColumn> _buildColumns() {
-    final columnNames = [
-      'N°',
-      'ZONA',
-      'TIPO LABOR',
-      'LABOR',
-      'ALA',
-      'VETA',
-      'NIVEL',
-      'TIPO PERFORACION',
-      'ACCIONES'
-    ];
-
-    return columnNames
-        .map((name) => DataColumn(
-              label: Container(
-                width: name == 'ACCIONES' ? 100 : 120,
-                child: Text(
-                  name,
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ))
-        .toList();
+    );
   }
 
-  List<DataRow> _buildDataRows(List<Map<String, dynamic>> data) {
-    return List.generate(data.length, (index) {
-      final item = data[index];
-      final id = item['id']; // ID del registro
+  Future<void> _selectDate(BuildContext context) async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: DateTime.now(),
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2101),
+    );
 
-      return DataRow(
-        cells: [
-          DataCell(
-            GestureDetector(
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => FormularioScreen(
-                      idOperacion: operacionId,
-                      id: id,
-                      estado: estado!,
-                      tipoOperacion: widget.tipoOperacion,
-                      nivel: item['nivel'] ?? 'N/A',
-                      labor: item['labor'] ?? 'N/A',
-                    ),
-                  ),
-                );
-              },
-              child: Text((index + 1).toString()),
+    if (picked != null && picked != DateTime.parse(fechaActual)) {
+      setState(() {
+        fechaActual = DateFormat('yyyy-MM-dd').format(picked);
+        _fetchOperacionData(); // Actualizar datos con la nueva fecha
+      });
+    }
+  }
+
+  Widget _buildStateButton(
+    String label,
+    Color color,
+    List<Map<String, String>> codigoOperativos,
+  ) {
+    return GestureDetector(
+      onTap: () {
+        if (selectedTurno == null || operacionId == null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Debes crear una operación primero'),
+              backgroundColor: Colors.red,
+              duration: Duration(seconds: 1),
             ),
-          ),
-          _buildInteractiveDataCell(item['zona'] ?? 'N/A', id, item),
-          _buildInteractiveDataCell(item['tipo_labor'] ?? 'N/A', id, item),
-          _buildInteractiveDataCell(item['labor'] ?? 'N/A', id, item),
-          _buildInteractiveDataCell(item['ala'] ?? 'N/A', id, item),
-          _buildInteractiveDataCell(item['veta'] ?? 'N/A', id, item),
-          _buildInteractiveDataCell(item['nivel'] ?? 'N/A', id, item),
-          _buildInteractiveDataCell(
-              item['tipo_perforacion'] ?? 'N/A', id, item),
-          DataCell(
-            Container(
-              width: 160,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  IconButton(
-                    icon: Image.asset(
-                      'assets/icon/ejecutado.png',
-                      width: 24,
-                      height: 24,
-                    ),
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => FormularioScreen(
-                            id: id,
-                            idOperacion: operacionId,
-                            estado: estado!,
-                            tipoOperacion: widget.tipoOperacion,
-                            nivel: item['nivel'] ?? 'N/A',
-                            labor: item['labor'] ?? 'N/A',
-                          ),
-                        ),
-                      );
-                    },
-                    constraints: BoxConstraints(maxWidth: 40),
-                    padding: EdgeInsets.zero,
-                  ),
-                  IconButton(
-                    icon: Icon(Icons.edit, color: Colors.blue),
-                    onPressed: () {},
-                    constraints: BoxConstraints(maxWidth: 40),
-                    padding: EdgeInsets.zero,
-                  ),
-                  IconButton(
-                    icon: Icon(Icons.delete, color: Colors.red),
-                    onPressed: () async {
-                      bool? confirmDelete = await showDialog(
-                        context: context,
-                        builder: (BuildContext context) {
-                          return AlertDialog(
-                            title:
-                                Text('¿Está seguro de eliminar el registro?'),
-                            actions: <Widget>[
-                              TextButton(
-                                onPressed: () {
-                                  Navigator.of(context).pop(false);
-                                },
-                                child: Text('No'),
-                              ),
-                              TextButton(
-                                onPressed: () {
-                                  Navigator.of(context).pop(true);
-                                },
-                                child: Text('Sí'),
-                              ),
-                            ],
-                          );
-                        },
-                      );
+          );
+          return;
+        }
 
-                      if (confirmDelete == true) {
-                        final dbHelper = DatabaseHelper_Mina2();
-                        final result = await dbHelper.delete(
-                            'PerforacionTaladroLargo', id);
-
-                        if (result > 0) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                                content:
-                                    Text('Registro eliminado correctamente.')),
-                          );
-                          _refreshData();
-                        } else {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                                content:
-                                    Text('No se pudo eliminar el registro.')),
-                          );
-                        }
-                      }
-                    },
-                    constraints: BoxConstraints(maxWidth: 40),
-                    padding: EdgeInsets.zero,
-                  ),
-                ],
-              ),
-            ),
+        showRegisterOperationDialog(
+          context,
+          codigoOperativos,
+          selectedTurno!,
+          operacionId!,
+          label,
+        );
+      },
+      child: Container(
+        height: 50,
+        width: 140,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: color,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+            fontSize: MediaQuery.of(context).size.width < 600 ? 8 : 14,
           ),
-        ],
+          textAlign: TextAlign.center,
+        ),
+      ),
+    );
+  }
+
+
+
+void showRegisterOperationDialog(
+  BuildContext context,
+  List<Map<String, String>> codigoOperativos,
+  String turno,
+  int operacionId,
+  String selectedState, {
+  Map<String, String>? existingRecord,
+}) {
+  print('Turno: $turno');
+  print('operacionId: $operacionId');
+  print('SelectedState: $selectedState');
+  print('Existing Record: $existingRecord');
+
+  // Variables para manejar el estado
+  String? selectedCodigo;
+  String? selectedTime;
+  final timeController = TextEditingController();
+  final isEditing = existingRecord != null;
+
+  // Si estamos editando, inicializamos los valores
+  if (isEditing) {
+    selectedCodigo = existingRecord['codigo'];
+    selectedTime = existingRecord['hora_inicio'];
+    timeController.text = existingRecord['hora_inicio'] ?? '';
+  }
+
+  // Función para generar intervalos de tiempo cada 5 minutos
+  // List<String> generateTimeIntervals(String turno) {
+  //   List<String> times = [];
+
+  //   if (turno == "DÍA") {
+  //     // Turno día: 07:00 - 18:55
+  //     for (int hour = 7; hour < 19; hour++) {
+  //       for (int minute = 0; minute < 60; minute += 5) {
+  //         times.add(
+  //             "${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}");
+  //       }
+  //     }
+  //   } else {
+  //     // Turno noche: 19:00 - 06:55
+  //     List<String> nightTimes = [];
+
+  //     // Primera parte: 19:00 - 23:55
+  //     for (int hour = 19; hour < 24; hour++) {
+  //       for (int minute = 0; minute < 60; minute += 5) {
+  //         nightTimes.add(
+  //             "${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}");
+  //       }
+  //     }
+
+  //     // Segunda parte: 00:00 - 06:55
+  //     for (int hour = 0; hour < 7; hour++) {
+  //       for (int minute = 0; minute < 60; minute += 5) {
+  //         nightTimes.add(
+  //             "${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}");
+  //       }
+  //     }
+
+  //     times.addAll(nightTimes);
+  //   }
+
+  //   return times;
+  // }
+
+  List<String> generateTimeIntervals(String turno) {
+  List<String> times = [];
+
+  if (turno == "DÍA") {
+    // Turno día: 07:00 - 17:25 (antes era hasta 18:55)
+    for (int hour = 7; hour <= 17; hour++) {
+      for (int minute = 0; minute < 60; minute += 5) {
+        // Para la hora 17, solo llegar hasta 25 minutos
+        if (hour == 17 && minute > 25) break;
+        times.add(
+            "${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}");
+      }
+    }
+  } else {
+    // Turno noche: 19:00 - 05:25 (antes era hasta 06:55)
+    List<String> nightTimes = [];
+
+    // Primera parte: 19:00 - 23:55
+    for (int hour = 19; hour < 24; hour++) {
+      for (int minute = 0; minute < 60; minute += 5) {
+        nightTimes.add(
+            "${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}");
+      }
+    }
+
+    // Segunda parte: 00:00 - 05:25
+    for (int hour = 0; hour <= 5; hour++) {
+      for (int minute = 0; minute < 60; minute += 5) {
+        // Para la hora 5, solo llegar hasta 25 minutos
+        if (hour == 5 && minute > 25) break;
+        nightTimes.add(
+            "${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}");
+      }
+    }
+
+    times.addAll(nightTimes);
+  }
+
+  return times;
+}
+
+  List<DropdownMenuItem<String>> obtenerOpcionesUnicas(
+      List<Map<String, dynamic>> data) {
+    final seen = <String>{};
+    return data.where((e) => seen.add(e["Código"] as String? ?? "")).map((e) {
+      String codigo = e["Código"] as String? ?? "";
+      String tipoEstado = e["Nombre"] as String? ?? "";
+      return DropdownMenuItem<String>(
+        value: codigo,
+        child: Text("$codigo - $tipoEstado", style: TextStyle(fontSize: 14)),
       );
-    });
+    }).toList();
   }
 
-// Función para hacer que cada celda sea interactiva
-  DataCell _buildInteractiveDataCell(
-      String text, int id, Map<String, dynamic> item) {
-    return DataCell(
-      GestureDetector(
-        onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => FormularioScreen(
-                id: id,
-                idOperacion: operacionId,
-                estado: estado!,
-                tipoOperacion: widget.tipoOperacion,
-                labor: item['labor'] ?? 'N/A',
-                nivel: item['nivel'] ?? 'N/A', // Pasar nivel correctamente
+  List<Map<String, String>> currentDataDialog = datadialog[selectedState] ?? [];
+
+  List<String> registeredHours = codigoOperativos
+      .where((item) => !isEditing || item["id"] != existingRecord!["id"])
+      .map((item) => item["hora_inicio"] ?? '')
+      .where((hora) => hora.isNotEmpty)
+      .toList();
+
+  // bool isValidTimeForShift(String time, String shift) {
+  //   try {
+  //     final hour = int.parse(time.split(':')[0]);
+  //     final minute = int.parse(time.split(':')[1]);
+      
+  //     if (shift == "DÍA") {
+  //       if (hour < 7 || hour > 18) return false;
+  //       if (hour == 18 && minute > 59) return false;
+  //     } else {
+  //       if (hour > 6 && hour < 19) return false;
+  //       if (hour == 6 && minute > 59) return false;
+  //     }
+  //     return true;
+  //   } catch (e) {
+  //     return false;
+  //   }
+  // }
+
+  bool isValidTimeForShift(String time, String shift) {
+  try {
+    final hour = int.parse(time.split(':')[0]);
+    final minute = int.parse(time.split(':')[1]);
+    
+    if (shift == "DÍA") {
+      // Validar entre 7:00 y 17:25
+      if (hour < 7 || hour > 17) return false;
+      if (hour == 17 && minute > 25) return false;
+    } else {
+      // Validar entre 19:00-23:55 y 00:00-05:25
+      if (hour > 5 && hour < 19) return false;
+      if (hour == 5 && minute > 25) return false;
+    }
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
+  bool isTimeValidForEdit(String newTime) {
+    if (registeredHours.isEmpty) return true;
+
+    List<String> sortedRegisteredHours = [...registeredHours];
+
+    if (turno != "DÍA") {
+      sortedRegisteredHours.sort((a, b) {
+        int aHour = int.parse(a.split(":")[0]);
+        int bHour = int.parse(b.split(":")[0]);
+        if ((aHour >= 19 && bHour >= 19) || (aHour < 7 && bHour < 7)) {
+          return a.compareTo(b);
+        } else if (aHour >= 19 && bHour < 7) {
+          return -1;
+        } else {
+          return 1;
+        }
+      });
+    } else {
+      sortedRegisteredHours.sort();
+    }
+
+    String lastTime = sortedRegisteredHours.last;
+    int lastHour = int.parse(lastTime.split(":")[0]);
+    int lastMinute = int.parse(lastTime.split(":")[1]);
+    int newHour = int.parse(newTime.split(":")[0]);
+    int newMinute = int.parse(newTime.split(":")[1]);
+
+    if (turno != "DÍA") {
+      if (lastHour >= 19 && newHour < 7) return true;
+      if ((lastHour >= 19 && newHour >= 19) || (lastHour < 7 && newHour < 7)) {
+        return newHour > lastHour || (newHour == lastHour && newMinute > lastMinute);
+      }
+      return false;
+    } else {
+      return newHour > lastHour || (newHour == lastHour && newMinute > lastMinute);
+    }
+  }
+
+  bool isLastRecord() {
+    if (!isEditing || codigoOperativos.isEmpty) return false;
+    return codigoOperativos.last["id"] == existingRecord!["id"];
+  }
+
+  String horaFinalTurno = turno == "DÍA" ? "19:00" : "07:00";
+  bool esCambioTurno = DateTime.now().hour == (turno == "DÍA" ? 19 : 7) &&
+      DateTime.now().minute == 0;
+
+  if (esCambioTurno && codigoOperativos.isNotEmpty && !isEditing) {
+    int lastId = int.parse(codigoOperativos.last["id"]!);
+    DatabaseHelper_Mina2().updateHoraFinal(lastId, horaFinalTurno);
+  }
+
+  showDialog(
+    context: context,
+    builder: (BuildContext context) {
+      return StatefulBuilder(
+        builder: (context, setState) {
+          // Generar opciones de tiempo disponibles
+          List<String> timeOptions = generateTimeIntervals(turno);
+          
+          // Filtrar horas disponibles
+          List<String> availableTimeOptions = timeOptions.where((hora) {
+            if (registeredHours.isEmpty) return true;
+            
+            if (!isValidTimeForShift(hora, turno)) return false;
+            
+            return isTimeValidForEdit(hora);
+          }).toList();
+
+          // Asegurarnos de que el selectedTime esté en las opciones disponibles
+          if (isEditing && selectedTime != null && !availableTimeOptions.contains(selectedTime)) {
+            availableTimeOptions.add(selectedTime!);
+            availableTimeOptions.sort();
+          }
+
+          return AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            title: Center(
+              child: Text(
+                isEditing ? "EDITAR OPERACIÓN" : "REGISTRA OPERACIÓN", 
+                style: TextStyle(fontWeight: FontWeight.bold)
+              ),
+            ),
+            content: SizedBox(
+              width: 500,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    DropdownButtonFormField<String>(
+                      isExpanded: true,
+                      decoration: InputDecoration(
+                        labelText: "Código (*)",
+                        contentPadding: EdgeInsets.symmetric(vertical: 2, horizontal: 12),
+                      ),
+                      value: selectedCodigo,
+                      items: obtenerOpcionesUnicas(currentDataDialog),
+                      onChanged: (value) {
+                        setState(() {
+                          selectedCodigo = value;
+                        });
+                      },
+                    ),
+                    SizedBox(height: 10),
+                    DropdownButtonFormField<String>(
+                      decoration: InputDecoration(
+                        labelText: "Hora Inicio (*)",
+                        contentPadding: EdgeInsets.symmetric(vertical: 2, horizontal: 12),
+                      ),
+                      value: selectedTime,
+                      items: availableTimeOptions
+                          .map((time) => DropdownMenuItem(
+                                value: time,
+                                child: Text(time, style: TextStyle(fontSize: 14)),
+                              ))
+                          .toList(),
+                      onChanged: (value) {
+                        setState(() {
+                          selectedTime = value;
+                        });
+                      },
+                      menuMaxHeight: 200,
+                    ),
+                    SizedBox(height: 16),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        ElevatedButton(
+  onPressed: () {
+    setState(() {
+      selectedCodigo = isEditing ? existingRecord['codigo'] : null;
+      selectedTime = isEditing ? existingRecord['hora_inicio'] : null;
+      if (isEditing) {
+        timeController.text = existingRecord['hora_inicio'] ?? '';
+      } else {
+        timeController.clear();
+      }
+    });
+  },
+  style: ElevatedButton.styleFrom(backgroundColor: Colors.blue),
+  child: Text("Limpiar"),
+),
+                        ElevatedButton(
+                          onPressed: () async {
+                            if (selectedCodigo != null && selectedTime != null) {
+                              bool horaExiste = codigoOperativos
+                                  .where((item) => !isEditing || item["id"] != existingRecord!["id"])
+                                  .any((item) => item["hora_inicio"] == selectedTime);
+                              
+                              if (horaExiste) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text("Error: La Hora Inicio ya está registrada."),
+                                    backgroundColor: Colors.red,
+                                  ),
+                                );
+                                return;
+                              }
+                              
+                              if (!isValidTimeForShift(selectedTime!, turno)) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text("La hora no está dentro del turno $turno"),
+                                    backgroundColor: Colors.red,
+                                  ),
+                                );
+                                return;
+                              }
+                              
+                              if (!isTimeValidForEdit(selectedTime!)) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text("La hora debe ser posterior a la última registrada"),
+                                    backgroundColor: Colors.red,
+                                  ),
+                                );
+                                return;
+                              }
+                              
+                              if (isEditing) {
+                                // Lógica para actualizar
+                                int result = await DatabaseHelper_Mina2().updateEstado(
+                                  int.parse(existingRecord!["id"]!),
+                                  int.parse(existingRecord["numero"]!),
+                                  selectedState,
+                                  selectedCodigo!,
+                                  selectedTime!,
+                                  existingRecord["hora_final"] ?? "",
+                                );
+                                
+                                // Si estamos editando el último registro, actualizamos la hora_final del anterior
+                                if (isLastRecord()) {
+                                  final currentIndex = codigoOperativos.indexWhere(
+                                    (item) => item["id"] == existingRecord["id"]);
+                                  
+                                  if (currentIndex > 0) {
+                                    final previousRecord = codigoOperativos[currentIndex - 1];
+                                    await DatabaseHelper_Mina2().updateHoraFinal(
+                                      int.parse(previousRecord["id"]!),
+                                      selectedTime!,
+                                    );
+                                  }
+                                }
+                                
+                                if (result > 0) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text("Registro actualizado correctamente."),
+                                      backgroundColor: Colors.green,
+                                    ),
+                                  );
+                                  fetchEstados();
+                                  Navigator.of(context).pop();
+                                } else {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text("Error al actualizar el registro."),
+                                      backgroundColor: Colors.red,
+                                    ),
+                                  );
+                                }
+                              } else {
+                                // Lógica para crear
+                                int newNumber = codigoOperativos.isNotEmpty
+                                    ? int.parse(codigoOperativos.last["numero"]!) + 1
+                                    : 1;
+                                String horaInicio = codigoOperativos.isNotEmpty &&
+                                        codigoOperativos.last["hora_final"]!.isNotEmpty
+                                    ? codigoOperativos.last["hora_final"]!
+                                    : selectedTime!;
+                                    
+                                if (codigoOperativos.isNotEmpty) {
+                                  int lastId = int.parse(codigoOperativos.last["id"]!);
+                                  await DatabaseHelper_Mina2().updateHoraFinal(lastId, selectedTime!);
+                                }
+                                
+                                int result = await DatabaseHelper_Mina2().createEstado(
+                                  operacionId,
+                                  newNumber,
+                                  selectedState,
+                                  selectedCodigo!,
+                                  horaInicio,
+                                  "",
+                                );
+                                
+                                if (result > 0) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text("Registro guardado correctamente."),
+                                      backgroundColor: Colors.green,
+                                    ),
+                                  );
+                                  fetchEstados();
+                                  Navigator.of(context).pop();
+                                  Future.delayed(Duration.zero, () {
+                                    showDialog(
+                                      barrierDismissible: false,
+                                      context: context,
+                                      builder: (BuildContext context) {
+                                        return Dialog(
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(16),
+                                          ),
+                                          child: Container(
+                                            width: 700,
+                                            height: 800,
+                                            padding: const EdgeInsets.symmetric(
+                                                horizontal: 8.0, vertical: 10.0),
+                                            decoration: BoxDecoration(
+                                              border: Border.all(color: Colors.blue, width: 2),
+                                              borderRadius: BorderRadius.circular(16),
+                                            ),
+                                            child: selectedState == "OPERATIVO"
+                                                ? RegistroPerforacionScreen(
+                                                    onDataInserted: fetchEstados,
+                                                    estadoId: result,
+                                                    estado: selectedState,
+                                                    operacionId: operacionId,
+                                                    tipoOperacion: widget.tipoOperacion,
+                                                  )
+                                                : RegistroPerforacionScreenNoOperative(
+                                                    onDataInserted: fetchEstados,
+                                                    estadoId: result,
+                                                    estado: selectedState,
+                                                    operacionId: operacionId,
+                                                    tipoOperacion: widget.tipoOperacion,
+                                                  ),
+                                          ),
+                                        );
+                                      },
+                                    );
+                                  });
+                                } else {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text("Error al guardar el registro."),
+                                      backgroundColor: Colors.red,
+                                    ),
+                                  );
+                                }
+                              }
+                            } else {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text("Faltan datos por seleccionar."),
+                                  backgroundColor: Colors.red,
+                                ),
+                              );
+                            }
+                          },
+                          style: ElevatedButton.styleFrom(
+                              backgroundColor: isEditing ? Colors.orange : Colors.green),
+                          child: Text(isEditing ? "Actualizar" : "Crear"),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: 10),
+                    Text("(*) Los campos con asterisco son obligatorios.",
+                        style: TextStyle(fontSize: 12, color: Colors.grey)),
+                    SizedBox(height: 16),
+                  ],
+                ),
               ),
             ),
           );
         },
-        child: Container(
-          width: 120,
-          child: Text(
-            text,
-            overflow: TextOverflow.ellipsis,
-          ),
+      );
+    },
+  );
+}
+
+  void fetchEstados() async {
+    try {
+      final dbHelper = DatabaseHelper_Mina2();
+      List<Map<String, dynamic>> estados =
+          await dbHelper.getEstadosByOperacionId(operacionId!);
+
+      print("Datos obtenidos de la base de datos: $estados");
+
+      List<Map<String, String>> allEstados = estados.map((estado) {
+        return {
+          'id': estado['id'].toString(),
+          'numero': estado['numero']?.toString() ?? '',
+          'estado': estado['estado']?.toString() ?? '',
+          'codigo': estado['codigo']?.toString() ?? '',
+          'hora_inicio': estado['hora_inicio']?.toString() ?? '',
+          'hora_final': estado['hora_final']?.toString() ?? '',
+        };
+      }).toList();
+
+      print("Estados convertidos: $allEstados");
+
+      setState(() {
+        currentData = allEstados;
+      });
+    } catch (e) {
+      print("Error al obtener estados: $e");
+    }
+  }
+
+  Widget _buildCodigoTable() {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        bool isSmallScreen = constraints.maxWidth < 600;
+
+        Widget table = Table(
+          border: TableBorder.all(color: Colors.black),
+          columnWidths: const {
+            0: FixedColumnWidth(40),
+            1: FixedColumnWidth(100),
+            2: FixedColumnWidth(120),
+            3: FixedColumnWidth(120),
+            4: FixedColumnWidth(100),
+            5: FixedColumnWidth(100),
+          },
+          children: [
+            TableRow(
+              decoration: BoxDecoration(color: Colors.blue.shade200),
+              children: [
+                headerCell("N°", isSmallScreen: isSmallScreen),
+                headerCell("Estado", isSmallScreen: isSmallScreen),
+                headerCell("Código", isSmallScreen: isSmallScreen),
+                headerCell("Hora Inicio", isSmallScreen: isSmallScreen),
+                headerCell("Hora Fin", isSmallScreen: isSmallScreen),
+                headerCell("Acciones", isSmallScreen: isSmallScreen),
+              ],
+            ),
+            for (var item in currentData)
+              TableRow(
+                children: [
+                  cellText(item["numero"] ?? "", isSmallScreen: isSmallScreen),
+                  cellText(item["estado"] ?? "", isSmallScreen: isSmallScreen),
+                  cellText(item["codigo"] ?? "", isSmallScreen: isSmallScreen),
+                  cellText(item["hora_inicio"] ?? "",
+                      isSmallScreen: isSmallScreen),
+                  cellText(item["hora_final"] ?? "",
+                      isSmallScreen: isSmallScreen),
+                  _buildActionIcons(context, item),
+                ],
+              ),
+          ],
+        );
+
+        return isSmallScreen
+            ? SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: table,
+              )
+            : table;
+      },
+    );
+  }
+
+  Widget _buildActionIcons(BuildContext context, Map<String, dynamic> item) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        IconButton(
+          icon: Icon(Icons.play_arrow, color: Colors.green),
+          onPressed: () {
+            print("Ejecutando item con id: ${item["id"]}");
+
+            // Verifica el estado y muestra el dialog correspondiente
+            if (item["estado"] == "OPERATIVO") {
+              showDialog(
+                context: context,
+                builder: (BuildContext context) {
+                  return Dialog(
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Container(
+                      width: 700,
+                      height: 800,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8.0, vertical: 10.0),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.blue, width: 2),
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: RegistroPerforacionScreen(
+                        onDataInserted: _refreshData,
+                        estadoId: int.parse(item["id"].toString()),
+                        estado: estado!,
+                        operacionId: operacionId!,
+                        tipoOperacion: widget.tipoOperacion,
+                      ),
+                    ),
+                  );
+                },
+              );
+            } else {
+              // Para estados no OPERATIVO, abre el otro dialog
+              showDialog(
+                context: context,
+                builder: (BuildContext context) {
+                  return Dialog(
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Container(
+                      width: 700,
+                      height: 800,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8.0, vertical: 10.0),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.blue, width: 2),
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: RegistroPerforacionScreenNoOperative(
+                        onDataInserted: _refreshData,
+                        estado: estado!,
+                        operacionId: operacionId!,
+                        estadoId: int.parse(item["id"].toString()),
+                        tipoOperacion: widget.tipoOperacion,
+                      ),
+                    ),
+                  );
+                },
+              );
+            }
+          },
+        ),
+        _buildDeleteIcon(context, item["id"]),
+      ],
+    );
+  }
+
+
+  Widget headerCell(String text, {bool isSmallScreen = false}) {
+    return Padding(
+      padding: const EdgeInsets.all(8),
+      child: Text(
+        text,
+        textAlign: TextAlign.center,
+        style: TextStyle(
+          fontWeight: FontWeight.bold,
+          color: Colors.white,
+          fontSize: isSmallScreen ? 12 : 14,
         ),
       ),
+    );
+  }
+
+  Widget cellText(String text, {bool isSmallScreen = false}) {
+    return Padding(
+      padding: const EdgeInsets.all(8),
+      child: Text(
+        text,
+        textAlign: TextAlign.center,
+        style: TextStyle(
+          color: Colors.black,
+          fontSize: isSmallScreen ? 10 : 14,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDeleteIcon(
+    BuildContext context,
+    String? id,
+  ) {
+    return IconButton(
+      icon: Icon(Icons.delete, color: Colors.red),
+      onPressed: () {
+        if (id != null) {
+          int estadoId = int.tryParse(id) ?? 0;
+          if (estadoId > 0) {
+            List<int> idsAEliminar = [];
+            for (var item in currentData) {
+              int currentId = int.tryParse(item["id"] ?? "0") ?? 0;
+              if (currentId >= estadoId) {
+                idsAEliminar.add(currentId);
+              }
+            }
+            _confirmDelete(context, idsAEliminar);
+          }
+        }
+      },
+    );
+  }
+
+  void _confirmDelete(BuildContext context, List<int> idsAEliminar) {
+    final scaffoldContext = context;
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text("Confirmar eliminación"),
+          content: Text(
+              "¿Estás seguro de que quieres eliminar estos estados? Se eliminarán todos los registros posteriores al seleccionado."),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text("Cancelar"),
+            ),
+            TextButton(
+              onPressed: () async {
+                Navigator.of(context).pop();
+
+                final dbHelper = DatabaseHelper_Mina2();
+                bool success = true;
+
+                try {
+                  // ✅ Buscar el estado anterior al que se va a eliminar
+                  int estadoAEliminar = idsAEliminar.first;
+                  int? estadoAnteriorId;
+
+                  for (var item in currentData) {
+                    int currentId = int.tryParse(item["id"] ?? "0") ?? 0;
+                    if (currentId < estadoAEliminar) {
+                      estadoAnteriorId = currentId;
+                    }
+                  }
+
+                  // ✅ Si hay un estado anterior, actualizar su `hora_final` a vacío
+                  if (estadoAnteriorId != null) {
+                    await dbHelper.updateHoraFinal(estadoAnteriorId, "");
+                    print(
+                        "Se limpió la hora_final del estado con ID: $estadoAnteriorId");
+                  }
+
+                  // ✅ Eliminar los estados desde el seleccionado en adelante
+                  for (int id in idsAEliminar) {
+                    int result = await dbHelper.deleteEstado(id);
+                    if (result == 0) {
+                      success = false;
+                    }
+                  }
+
+                  // ✅ Mostrar mensaje de éxito o error
+                  ScaffoldMessenger.of(scaffoldContext).showSnackBar(
+                    SnackBar(
+                      content: Text(success
+                          ? "Estados eliminados correctamente"
+                          : "Error al eliminar algunos estados"),
+                      backgroundColor: success ? Colors.green : Colors.red,
+                    ),
+                  );
+
+                  fetchEstados(); // ✅ Actualizar la lista en la UI
+                } catch (e) {
+                  print("Error al eliminar estados: $e");
+
+                  ScaffoldMessenger.of(scaffoldContext).showSnackBar(
+                    SnackBar(
+                      content: Text("Error al eliminar los estados"),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              },
+              child: Text("Eliminar", style: TextStyle(color: Colors.red)),
+            ),
+          ],
+        );
+      },
     );
   }
 }

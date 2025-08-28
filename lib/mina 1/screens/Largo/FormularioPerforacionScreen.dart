@@ -1,3 +1,4 @@
+import 'package:app_seminco/components/showPdfDialog.dart';
 import 'package:flutter/material.dart';
 import 'package:app_seminco/database/database_helper.dart';
 
@@ -8,13 +9,16 @@ class FormularioScreen extends StatefulWidget {
   final int? idOperacion;
   final String nivel;
   final String labor;
-
+  final String ala;
+final String tipo_labor;
   FormularioScreen(
       {required this.id,
       required this.idOperacion,
       required this.estado,
       required this.tipoOperacion,
       required this.nivel,
+            required this.ala,
+            required this.tipo_labor,
       required this.labor});
 
   @override
@@ -536,23 +540,22 @@ class _FormularioScreenState extends State<FormularioScreen> {
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text("Tabla de taladro largo"),
-        backgroundColor: Color(0xFF21899C),
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            Expanded(
+@override
+Widget build(BuildContext context) {
+  return Scaffold(
+    appBar: AppBar(
+      title: Text("Tabla de taladro horizontal"),
+      backgroundColor: Color(0xFF21899C)),
+    body: Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        children: [
+          Expanded(
+            child: SingleChildScrollView(
+              scrollDirection: Axis.vertical,
               child: SingleChildScrollView(
-                scrollDirection: Axis.vertical, // Permite scroll vertical
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: DataTable(
+                scrollDirection: Axis.horizontal,
+                child: DataTable(
                     border: TableBorder.all(color: Colors.grey),
                     headingRowColor: MaterialStateColor.resolveWith(
                         (states) => Colors.blue[200]!),
@@ -655,21 +658,47 @@ class _FormularioScreenState extends State<FormularioScreen> {
                             ),
                           ],
                   ),
-                ),
               ),
             ),
-            SizedBox(height: 10),
-          ],
+          ),
+          SizedBox(height: 16),
+Center(
+  child: SizedBox(
+    width: 200, // Ancho fijo que puedes ajustar
+    child: ElevatedButton(
+      onPressed: () {
+        showPdfDialog(
+          context,
+          widget.tipoOperacion,
+          tipoLabor: widget.tipo_labor,
+          labor: widget.labor,
+          ala: widget.ala,
+        );
+      },
+      style: ElevatedButton.styleFrom(
+        backgroundColor: Color(0xFF21899C),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
         ),
+        padding: EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+        textStyle: TextStyle(fontSize: 16),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: widget.estado == "cerrado" ? null : _addNewRecord,
-        child: Icon(Icons.add),
-        backgroundColor: widget.estado == "cerrado" ? Colors.grey : Colors.blue,
+      child: Text("Ver PDF", style: TextStyle(color: Colors.white)),
+    ),
+  ),
+),
+          SizedBox(height: 8),
+        ],
       ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
-    );
-  }
+    ),
+    floatingActionButton: FloatingActionButton(
+      onPressed: widget.estado == "cerrado" ? null : _addNewRecord,
+      child: Icon(Icons.add),
+      backgroundColor: widget.estado == "cerrado" ? Colors.grey : Colors.blue,
+    ),
+    floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+  );
+}
 
   DataCell _editableCell(Map<String, dynamic> row, String column) {
     String value = row[column] != null && row[column] != 0.0

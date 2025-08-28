@@ -14,19 +14,24 @@ import 'package:app_seminco/inicio/login_screen.dart';
 import 'package:app_seminco/mina%202/services/ApiServiceAccesorio.dart';
 import 'package:app_seminco/mina%202/services/ApiServiceExplosivo.dart';
 import 'package:app_seminco/mina%202/services/ApiServiceFor%20.dart';
+import 'package:app_seminco/mina%202/services/ApiServicePdf.dart';
 import 'package:app_seminco/mina%202/services/ApiServiceTipoPerforacion.dart';
 import 'package:app_seminco/mina%202/services/Plan%20mensual/api_service_FechasPlanMensualService.dart';
 import 'package:app_seminco/mina%202/services/Plan%20mensual/api_service_plan_mensual.dart';
 import 'package:app_seminco/mina%202/services/Plan%20mensual/api_service_plan_mensual_metraje.dart';
 import 'package:app_seminco/mina%202/services/Plan%20mensual/api_service_plan_mensual_produccion.dart';
+import 'package:app_seminco/mina%202/services/api_service_checklist.dart';
 import 'package:app_seminco/mina%202/services/api_service_destinatarios.dart';
 import 'package:app_seminco/mina%202/services/api_service_estado.dart';
 import 'package:app_seminco/mina%202/services/api_service_explosivos.dart';
 import 'package:app_seminco/mina%202/services/api_service_toneladas.dart';
 import 'package:app_seminco/mina%202/services/api_services_Empresa.dart';
 import 'package:app_seminco/mina%202/services/api_services_Equipo.dart';
+import 'package:app_seminco/mina%202/services/ingreso%20nube/ApiServiceExploracion.dart';
 import 'package:flutter/material.dart';
 import 'dart:convert';
+
+import 'package:provider/provider.dart';
 
 class ReporteScreenMina2 extends StatefulWidget {
   final String token;
@@ -54,6 +59,9 @@ class _ReporteScreenMina2State extends State<ReporteScreenMina2> {
     estadoService = ApiServiceEstado();
     _cargarNombreUsuario();
     // _inicializarBaseDeDatos();
+  //       final connectivity = Provider.of<ConnectivityServiceMina2>(context, listen: false);
+  // final syncService = Provider.of<BackgroundSyncServiceMina2>(context, listen: false);
+
   }
 
   Future<void> _actualizarDatos(BuildContext context) async {
@@ -87,6 +95,8 @@ class _ReporteScreenMina2State extends State<ReporteScreenMina2> {
         "Plan Metraje": () => fetchPlanMetraje(anio, mes),
         "Plan Producción": () => fetchPlanProduccion(anio, mes),
         "Toneladas": fetchToneladas,
+        "Checklist": fetchCheckList,
+        "pdf": () => fetchPdfsDelMes(mes),
       };
 
       bool errorOcurrido = false;
@@ -124,6 +134,22 @@ class _ReporteScreenMina2State extends State<ReporteScreenMina2> {
     }
   }
 
+  Future<void> fetchPdfsDelMes(String mes) async {
+  try {
+    final apiService = ApiServicePdf(); // ✅ Crear una instancia
+    final pdfs = await apiService.fetchPdfsPorMes(widget.token, mes);
+    print("PDFs cargados correctamente: $pdfs");
+
+    // Verificar si los datos se almacenaron correctamente
+    final dbHelper = DatabaseHelper_Mina2();
+    final pdfsBD = await dbHelper.getAll('PdfModel');
+    print("PDFs en la base de datos local: $pdfsBD");
+  } catch (e) {
+    print("Error al cargar los PDFs: $e");
+  }
+}
+
+
   Future<void> _inicializarBaseDeDatos() async {
     try {
       final dbHelper = DatabaseHelper_Mina2();
@@ -147,24 +173,6 @@ class _ReporteScreenMina2State extends State<ReporteScreenMina2> {
   bool estaAutorizadoPara(String operacion) {
     return operacionesAutorizadas[operacion] == true;
   }
-
-  Future<void> fetchToneladas() async {
-  try {
-    final apiService = ApiServiceToneladas(); // Crear instancia del service
-
-    final toneladas = await apiService.fetchToneladas(
-        widget.token); // Obtener toneladas desde la API
-    print("Toneladas cargadas correctamente: $toneladas");
-
-    // Verificar si los datos se almacenaron correctamente en la base de datos local
-    final dbHelper = DatabaseHelper_Mina2();
-    final toneladasBD = await dbHelper.getAll(
-        'toneladas'); // Obtener toneladas de la base de datos local
-    print("Toneladas en la base de datos local: $toneladasBD");
-  } catch (e) {
-    print("Error al cargar las toneladas: $e");
-  }
-}
 
   Future<void> _cargarNombreUsuario() async {
     try {
@@ -250,6 +258,23 @@ class _ReporteScreenMina2State extends State<ReporteScreenMina2> {
       print("Error al cargar los tipos de perforación: $e");
     }
   }
+
+    Future<void> fetchExploracionesMina2() async {
+    try {
+      final apiService = ApiServiceExploracion_Mina2(); // ✅ Crear una instancia
+
+      final tipos = await apiService.fetchExploracionesMina2(widget.token);
+      print("Tipos de Perforación cargados correctamente: $tipos");
+
+      // Verificar si los datos se almacenaron correctamente
+      final dbHelper = DatabaseHelper_Mina2();
+      final tiposBD = await dbHelper.getAll('TipoPerforacion');
+      print("Tipos de Perforación en la base de datos local: $tiposBD");
+    } catch (e) {
+      print("Error al cargar los tipos de perforación: $e");
+    }
+  }
+
 
   Future<void> fetchEmpresa() async {
     try {
@@ -346,6 +371,41 @@ class _ReporteScreenMina2State extends State<ReporteScreenMina2> {
     }
   }
 
+Future<void> fetchToneladas() async {
+  try {
+    final apiService = ApiServiceToneladas(); // Crear instancia del service
+
+    final toneladas = await apiService.fetchToneladas(
+        widget.token); // Obtener toneladas desde la API
+    print("Toneladas cargadas correctamente: $toneladas");
+
+    // Verificar si los datos se almacenaron correctamente en la base de datos local
+    final dbHelper = DatabaseHelper_Mina2();
+    final toneladasBD = await dbHelper.getAll(
+        'toneladas'); // Obtener toneladas de la base de datos local
+    print("Toneladas en la base de datos local: $toneladasBD");
+  } catch (e) {
+    print("Error al cargar las toneladas: $e");
+  }
+}
+
+Future<void> fetchCheckList() async {
+  try {
+    final apiService = ApiServiceCheckList(); // Crear instancia del service
+
+    final checklistItems = await apiService.fetchCheckList(widget.token); // Obtener checklist desde la API
+    print("Checklist cargado correctamente: $checklistItems");
+
+    // Verificar si los datos se almacenaron correctamente en la base de datos local
+    final dbHelper = DatabaseHelper_Mina2();
+    final checklistBD = await dbHelper.getAll('checklist_items'); // Obtener checklist de la base de datos local
+    print("Checklist en la base de datos local: $checklistBD");
+  } catch (e) {
+    print("Error al cargar el checklist: $e");
+  }
+}
+
+
   Future<void> fetchExplosivosUni() async {
     try {
       final apiService =
@@ -437,7 +497,7 @@ class _ReporteScreenMina2State extends State<ReporteScreenMina2> {
         title: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: const [
-            Text('Registro de Reporte 2'),
+            Text('COMPAÑÍA MINERA NORCOBRE'),
             SizedBox(width: 10),
           ],
         ),
@@ -457,10 +517,14 @@ class _ReporteScreenMina2State extends State<ReporteScreenMina2> {
             onSelected: (value) async {
               if (value == 'actualizar') {
                 await _actualizarDatos(context);
+              } 
+              else if (value == 'mediciones') {
+                await fetchExploracionesMina2();
               } else if (value == 'cerrar_sesion') {
                 // Navegar a la pantalla de login y limpiar el stack de navegación
                 Navigator.of(context).pushAndRemoveUntil(
-                  MaterialPageRoute(builder: (context) => LoginScreen()),
+                  // MaterialPageRoute(builder: (context) => LoginScreen()),
+                   MaterialPageRoute(builder: (context) => SignInFive()),
                   (Route<dynamic> route) => false,
                 );
               }
@@ -473,6 +537,16 @@ class _ReporteScreenMina2State extends State<ReporteScreenMina2> {
                     Icon(Icons.refresh, color: Colors.black),
                     SizedBox(width: 8),
                     Text('Actualizar datos'),
+                  ],
+                ),
+              ),
+              PopupMenuItem(
+                value: 'mediciones',
+                child: Row(
+                  children: const [
+                    Icon(Icons.refresh, color: Colors.black),
+                    SizedBox(width: 8),
+                    Text('Actualizar Mediciones'),
                   ],
                 ),
               ),

@@ -55,9 +55,9 @@ bool _updateConnectionStatus(ConnectivityResult result) {
 
   void _printConnectionStatus() {
     if (_isConnected) {
-      print('✅ Estamos conectados a internet desde service');
+      print('✅ Estamos conectados a internet desde service mina 1');
     } else {
-      print('❌ No hay conexión a internet desde service');
+      print('❌ No hay conexión a internet desde service mina 1');
     }
   }
 }

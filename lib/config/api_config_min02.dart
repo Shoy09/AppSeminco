@@ -5,7 +5,7 @@ class ApiConfig_mina2 {
   static const String loginEndpoint =
       '/auth/login'; // Asegurando que el endpoint es correcto
   static const String formatoPlanMineralEndpoint = '/PlanMineral/PlanMineral';
-  static const String estadosEndpoint = '/estado/';
+  static const String estadosEndpoint = '/estado/con-subestados';
   static const String PlanMensualEndpoint = '/PlamMensual/';
   static const String tipoPerforacionEndpoint = '/TipoPerfpo/';
   static const String EquipoEndpoint = '/Equipo/';
@@ -34,4 +34,6 @@ class ApiConfig_mina2 {
   static const String medicionesHorizontalEndpoint = '/medicion-tal-horizontal';
   static const String medicionesLargoEndpoint = '/medicion-tal-largo';
   static const String toneladasEndpoint = '/toneladas';
+  static const String checklistEndpoint = '/check-list';
+  static const String pdfEndpoint = '/pdf-operacion';
 }

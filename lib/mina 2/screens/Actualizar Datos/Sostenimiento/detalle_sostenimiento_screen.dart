@@ -87,93 +87,116 @@ void _handleItemTap(int index) {
 Future<void> _exportSelectedItems() async {
   if (selectedItems.isEmpty) return;
 
-  DatabaseHelper_Mina2 dbHelper = DatabaseHelper_Mina2();
-  List<Map<String, dynamic>> jsonDataList = []; // Cambio a List para múltiples operaciones
+  final dbHelper = DatabaseHelper_Mina2();
+  final List<Map<String, dynamic>> jsonDataList = [];
 
-  for (var id in selectedItems) {
-    var operacion = operacionData.firstWhere((op) => op['id'] == id);
-    List<Map<String, dynamic>> estados = await dbHelper.getEstadosByOperacionId(id);
-    List<Map<String, dynamic>> perforaciones = await dbHelper.getPerforacionesTaladroSostenimiento(id);
+  for (final id in selectedItems) {
+    // 1. Obtener datos básicos de la operación
+    final operacion = operacionData.firstWhere((op) => op['id'] == id);
 
-    List<Map<String, dynamic>> interPerforaciones = [];
-    for (var perforacion in perforaciones) {
-      int perforacionId = perforacion['id'];
-      List<Map<String, dynamic>> interData = await dbHelper.getInterSostenimientos(perforacionId);
-      interPerforaciones.addAll(interData);
-    }
+    // 2. Obtener todos los elementos relacionados
+    final estados = await dbHelper.getEstadosByOperacionId(id);
+    final horometros = await dbHelper.getHorometrosByOperacion(id);
+    final checklists = await dbHelper.getChecklistsByOperacion(id);
 
-    List<Map<String, dynamic>> horometros = await dbHelper.getHorometrosByOperacion(id);
-
-    // Limpiar datos de operación
-    Map<String, dynamic> operacionSinId = {
+    // 3. Preparar datos limpios de la operación
+    final operacionLimpia = {
       "turno": operacion['turno'],
       "equipo": operacion['equipo'],
       "codigo": operacion['codigo'],
       "empresa": operacion['empresa'],
       "fecha": operacion['fecha'],
       "tipo_operacion": operacion['tipo_operacion'],
-      "estado": operacion['estado'] ?? 'activo' // Valor por defecto
+      "estado": operacion['estado'] ?? 'activo',
+      "envio": operacion['envio'] ?? 0
     };
 
-    // Limpiar datos de estados
-    List<Map<String, dynamic>> estadosLimpios = estados.map((estado) {
-      return {
+    // 4. Procesar estados con sus sostenimientos
+    final estadosLimpios = <Map<String, dynamic>>[];
+
+    for (final estado in estados) {
+      // Obtener sostenimientos para este estado
+      final sostenimientos = await dbHelper.getPerforacionesTaladroSostenimiento(estado['id']);
+
+      // Procesar cada sostenimiento con sus intersostenimientos
+      final sostenimientosLimpios = <Map<String, dynamic>>[];
+
+      for (final sostenimiento in sostenimientos) {
+        final interSostenimientos = await dbHelper.getInterSostenimientos(sostenimiento['id']);
+
+        sostenimientosLimpios.add({
+          "zona": sostenimiento['zona'],
+          "tipo_labor": sostenimiento['tipo_labor'],
+          "labor": sostenimiento['labor'],
+          "ala": sostenimiento['ala'],
+          "veta": sostenimiento['veta'],
+          "nivel": sostenimiento['nivel'],
+          "observacion": sostenimiento['observacion'],
+          "tipo_perforacion": sostenimiento['tipo_perforacion'],
+          "inter_sostenimientos": interSostenimientos.map((ip) {
+            return {
+              "codigo_actividad": ip['codigo_actividad'],
+              "nivel": ip['nivel'],
+              "labor": ip['labor'],
+              "seccion_de_labor": ip['seccion_de_labor'],
+              "nbroca": ip['nbroca'],
+              "ntaladro": ip['ntaladro'],
+              "material": ip['material'],
+              "longitud_perforacion": ip['longitud_perforacion'],
+              "metros_perforados": ip['metros_perforados'] ?? 0.0,
+              "detalles_trabajo_realizado": ip['detalles_trabajo_realizado'] ?? "",
+              "malla_instalada": ip['malla_instalada'] ?? false
+            };
+          }).toList()
+        });
+      }
+
+      // Agregar estado con sus sostenimientos
+      estadosLimpios.add({
         "numero": estado['numero'],
         "estado": estado['estado'],
         "codigo": estado['codigo'],
         "hora_inicio": estado['hora_inicio'],
-        "hora_final": estado['hora_final']
-      };
-    }).toList();
+        "hora_final": estado['hora_final'],
+        "sostenimientos": sostenimientosLimpios
+      });
+    }
 
-    // Limpiar datos de sostenimientos
-    List<Map<String, dynamic>> sostenimientosLimpios = perforaciones.map((perforacion) {
-      int pId = perforacion['id'];
-      return {
-        "zona": perforacion['zona'],
-        "tipo_labor": perforacion['tipo_labor'],
-        "labor": perforacion['labor'],
-        "ala": perforacion['ala'],
-        "veta": perforacion['veta'],
-        "nivel": perforacion['nivel'],
-        "tipo_perforacion": perforacion['tipo_perforacion'],
-        "inter_sostenimientos": interPerforaciones
-            .where((ip) => ip['sostenimiento_id'] == pId)
-            .map((ip) {
-              return {
-                "codigo_actividad": ip['codigo_actividad'],
-                "nivel": ip['nivel'],
-                "labor": ip['labor'],
-                "seccion_de_labor": ip['seccion_de_labor'],
-                "nbroca": ip['nbroca'],
-                "ntaladro": ip['ntaladro'],
-                "longitud_perforacion": ip['longitud_perforacion'],
-                "malla_instalada": ip['malla_instalada'] ?? false // Valor por defecto
-              };
-            }).toList()
-      };
-    }).toList();
-
-    // Limpiar datos de horometros
-    List<Map<String, dynamic>> horometrosLimpios = horometros.map((h) {
+    // 5. Procesar horómetros
+    final horometrosLimpios = horometros.map((h) {
       return {
         "nombre": h['nombre'],
         "inicial": h['inicial'],
-        "final": h['final']
+        "final": h['final'],
+        "EstaOP": h['EstaOP'] ?? 0,
+        "EstaINOP": h['EstaINOP'] ?? 0
       };
     }).toList();
 
+    // 6. Procesar checklists
+    final checklistsLimpios = checklists.map((c) {
+      return {
+        "descripcion": c['descripcion'],
+        "decision": c['decision'],
+        "observacion": c['observacion'],
+        "categoria": c['categoria']
+      };
+    }).toList();
+
+    // 7. Construir el objeto final de la operación
     jsonDataList.add({
       "local_id": id,
-      "operacion": operacionSinId,
-      "estados": estadosLimpios,
-      "sostenimientos": sostenimientosLimpios,
-      "horometros": horometrosLimpios
+      "idNube": operacion['idNube'] ?? 0,
+      "operacion": operacionLimpia,
+      "estados": estadosLimpios, // Con sostenimientos anidados bajo cada estado
+      "horometros": horometrosLimpios,
+      "checklists": checklistsLimpios,
     });
   }
 
   await _showConfirmationDialog(jsonDataList);
 }
+
 
 Future<void> _showConfirmationDialog(List<Map<String, dynamic>> jsonDataList) async {
   final jsonString = JsonEncoder.withIndent('  ').convert(jsonDataList);
@@ -190,10 +213,31 @@ Future<void> _showConfirmationDialog(List<Map<String, dynamic>> jsonDataList) as
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Text('¿Estás seguro de enviar estas operaciones de sostenimiento?'),
+                  const Text('¿Estás seguro de enviar estas operaciones?'),
                   const SizedBox(height: 10),
                   Text('Total: ${jsonDataList.length} operaciones'),
+                  const SizedBox(height: 20),
+                  const Text('Datos a enviar:', style: TextStyle(fontWeight: FontWeight.bold)),
                   const SizedBox(height: 10),
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.grey),
+                      borderRadius: BorderRadius.circular(5),
+                    ),
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          SelectableText(
+                            jsonString,
+                            style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),

@@ -42,6 +42,7 @@
 
 import 'dart:io'; // 👈 necesario para HttpOverrides
 import 'package:app_seminco/mina%201/screens/Mediciones/horizontal/horizontal.dart';
+import 'package:app_seminco/mina%201/screens/Mediciones/largo/largo.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:app_seminco/inicio/login.dart';
@@ -55,24 +56,27 @@ void main() async {
   // 👇 IGNORAR CERTIFICADO NO VÁLIDO (SOLO PARA DESARROLLO)
   HttpOverrides.global = MyHttpOverrides();
 
-  final connectivityService = ConnectivityService();
-  final backgroundSyncService = BackgroundSyncService(connectivityService: connectivityService);
+  // final connectivityService = ConnectivityService();
+  // final backgroundSyncService = BackgroundSyncService(connectivityService: connectivityService);
 
-  runApp(
-    MultiProvider(
-      providers: [
-        ChangeNotifierProvider(create: (_) => connectivityService),
-        Provider.value(value: backgroundSyncService),
-      ],
-      child: MyApp(),
-    ),
-  );
+
+runApp(MyApp());
+
+  // runApp(
+  //   MultiProvider(
+  //     providers: [
+  //       ChangeNotifierProvider(create: (_) => connectivityService),
+  //       Provider.value(value: backgroundSyncService),
+  //     ],
+  //     child: MyApp(),
+  //   ),
+  // );
 }
 
 class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    final connectivity = Provider.of<ConnectivityService>(context);
+    // final connectivity = Provider.of<ConnectivityService>(context);
 
     
     return MaterialApp(
@@ -80,6 +84,7 @@ class MyApp extends StatelessWidget {
       title: 'I-MINER',
       theme: ThemeData(primarySwatch: Colors.blue),
        home: SplashScreen(),
+      //  home: LoginScreen(),
       
     );
   }

@@ -490,6 +490,7 @@ double _parseDouble(String value) {
                   runSpacing: 10,
                   alignment: WrapAlignment.spaceBetween,
                   children: [
+                    _buildReadOnlyField("Fecha", fechaActual),
                     _buildDropdown("Turno", turnos, selectedTurno, (value) {
                       setState(() {
                         selectedTurno = value;
@@ -513,7 +514,7 @@ double _parseDouble(String value) {
                         selectedEmpresa = value;
                       });
                     }),
-                    _buildReadOnlyField("Fecha", fechaActual),
+                    
 
                     SizedBox(height: 20), // Un poco de espacio antes del botón
 
@@ -922,7 +923,9 @@ Future<void> _selectDate(BuildContext context) async {
                       estado: estado!,
                       tipoOperacion: widget.tipoOperacion,
                       nivel: item['nivel'] ?? 'N/A',
+                      tipo_labor: item['tipo_labor'] ?? 'N/A',
                       labor: item['labor'] ?? 'N/A',
+                      ala: item['ala'] ?? 'N/A',
                     ),
                   ),
                 );
@@ -960,7 +963,9 @@ Future<void> _selectDate(BuildContext context) async {
                             estado: estado!,
                             tipoOperacion: widget.tipoOperacion,
                             nivel: item['nivel'] ?? 'N/A',
+                            tipo_labor: item['tipo_labor'] ?? 'N/A',
                             labor: item['labor'] ?? 'N/A',
+                            ala: item['ala'] ?? 'N/A',
                           ),
                         ),
                       );
@@ -1047,8 +1052,10 @@ Future<void> _selectDate(BuildContext context) async {
                 id: id,
                 idOperacion: operacionId,
                 estado: estado!,
+                tipo_labor: item['tipo_labor'] ?? 'N/A',
                 tipoOperacion: widget.tipoOperacion,
                 labor: item['labor'] ?? 'N/A',
+                ala: item['ala'] ?? 'N/A',
                 nivel: item['nivel'] ?? 'N/A', // Pasar nivel correctamente
               ),
             ),

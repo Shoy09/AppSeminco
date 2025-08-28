@@ -1,3 +1,4 @@
+import 'package:app_seminco/components/showPdfDialog.dart';
 import 'package:flutter/material.dart';
 import 'package:app_seminco/database/database_helper.dart';
 
@@ -12,7 +13,7 @@ class FormularioScreen extends StatefulWidget {
   final String labor;
   final String veta;
   final String nivel;
-
+final String ala;
   FormularioScreen(
       {required this.id,
       required this.estado,
@@ -22,7 +23,9 @@ class FormularioScreen extends StatefulWidget {
       required this.zona,
       required this.tipo_labor,
       required this.labor,
+      required this.ala,
       required this.veta,
+      
       required this.nivel});
 
   @override
@@ -539,23 +542,22 @@ void _deleteRecord(int recordId) async {
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text("Tabla de Sostenimiento"),
-        backgroundColor: Color(0xFF21899C),
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            Expanded(
+@override
+Widget build(BuildContext context) {
+  return Scaffold(
+    appBar: AppBar(
+      title: Text("Tabla de taladro horizontal"),
+      backgroundColor: Color(0xFF21899C)),
+    body: Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        children: [
+          Expanded(
+            child: SingleChildScrollView(
+              scrollDirection: Axis.vertical,
               child: SingleChildScrollView(
-                scrollDirection: Axis.vertical,
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: DataTable(
+                scrollDirection: Axis.horizontal,
+                child: DataTable(
                     border: TableBorder.all(color: Colors.grey),
                     headingRowColor: MaterialStateColor.resolveWith(
                         (states) => Colors.blue[200]!),
@@ -649,29 +651,47 @@ void _deleteRecord(int recordId) async {
                             ),
                           ],
                   ),
-                ),
               ),
             ),
-            SizedBox(height: 10),
-            ElevatedButton(
-              onPressed: _saveData,
-              child: Text("Guardar datos"),
-              style: ElevatedButton.styleFrom(
-                padding: EdgeInsets.symmetric(horizontal: 40, vertical: 15),
-                textStyle: TextStyle(fontSize: 16),
-              ),
-            ),
-          ],
+          ),
+          SizedBox(height: 16), // Espacio entre la tabla y el botón
+          Center(
+  child: SizedBox(
+    width: 200, // Ancho fijo que puedes ajustar
+    child: ElevatedButton(
+      onPressed: () {
+        showPdfDialog(
+          context,
+          widget.tipoOperacion,
+          tipoLabor: widget.tipo_labor,
+          labor: widget.labor,
+          ala: widget.ala,
+        );
+      },
+      style: ElevatedButton.styleFrom(
+        backgroundColor: Color(0xFF21899C),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
         ),
+        padding: EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+        textStyle: TextStyle(fontSize: 16),
       ),
-      floatingActionButton: FloatingActionButton(
-  onPressed: widget.estado == "cerrado" ? null : _addNewRecord,
-  child: Icon(Icons.add),
-  backgroundColor: widget.estado == "cerrado" ? Colors.grey : Colors.blue,
+      child: Text("Ver PDF", style: TextStyle(color: Colors.white)),
+    ),
+  ),
 ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
-    );
-  }
+          SizedBox(height: 8),
+        ],
+      ),
+    ),
+    floatingActionButton: FloatingActionButton(
+      onPressed: widget.estado == "cerrado" ? null : _addNewRecord,
+      child: Icon(Icons.add),
+      backgroundColor: widget.estado == "cerrado" ? Colors.grey : Colors.blue,
+    ),
+    floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+  );
+}
 
   DataCell _editableCell(Map<String, dynamic> row, String column) {
     String value = row[column] != null && row[column] != 0.0

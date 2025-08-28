@@ -4,7 +4,7 @@ import 'dart:async';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/foundation.dart';
 
-class ConnectivityService with ChangeNotifier {
+class ConnectivityServiceMina2 with ChangeNotifier {
   final Connectivity _connectivity = Connectivity();
   bool _isConnected = false;
   Completer<void> _initCompleter = Completer<void>();
@@ -16,7 +16,7 @@ class ConnectivityService with ChangeNotifier {
     .map((result) => result != ConnectivityResult.none);
 
 
-  ConnectivityService() {
+  ConnectivityServiceMina2() {
     _init();
   }
 
@@ -55,9 +55,9 @@ bool _updateConnectionStatus(ConnectivityResult result) {
 
   void _printConnectionStatus() {
     if (_isConnected) {
-      print('✅ Estamos conectados a internet desde service');
+      print('✅ Estamos conectados a internet desde service mina 2');
     } else {
-      print('❌ No hay conexión a internet desde service');
+      print('❌ No hay conexión a internet desde service mina 2');
     }
   }
 }

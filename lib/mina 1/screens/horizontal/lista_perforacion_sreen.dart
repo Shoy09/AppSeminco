@@ -504,6 +504,9 @@ double _parseDouble(String value) {
                   runSpacing: 10,
                   alignment: WrapAlignment.spaceBetween,
                   children: [
+
+                    _buildReadOnlyField("Fecha", fechaActual),
+
                     _buildDropdown("Turno", turnos, selectedTurno, (value) {
                       setState(() {
                         selectedTurno = value;
@@ -527,7 +530,7 @@ double _parseDouble(String value) {
                         selectedEmpresa = value;
                       });
                     }),
-                    _buildReadOnlyField("Fecha", fechaActual),
+                    
 
                     SizedBox(height: 20), // Un poco de espacio antes del botón
 
@@ -770,6 +773,7 @@ double _parseDouble(String value) {
               ),
               child: Text("Estados", style: TextStyle(color: Colors.white)),
             ),
+            
             ElevatedButton(
               onPressed: () {
                 if (operacionId != null) {
@@ -945,6 +949,7 @@ Future<void> _selectDate(BuildContext context) async {
                       veta: item['veta'] ?? 'N/A',
                       nivel: item['nivel'] ?? 'N/A',
                       id: id,
+                      ala: item['ala'] ?? 'N/A',
                     ),
                   ),
                 );
@@ -986,6 +991,7 @@ Future<void> _selectDate(BuildContext context) async {
                       labor: item['labor'] ?? 'N/A',
                       veta: item['veta'] ?? 'N/A',
                       nivel: item['nivel'] ?? 'N/A',
+                      ala: item['ala'] ?? 'N/A',
                           ),
                         ),
                       );
@@ -1077,6 +1083,7 @@ Future<void> _selectDate(BuildContext context) async {
                       labor: item['labor'] ?? 'N/A',
                       veta: item['veta'] ?? 'N/A',
                       nivel: item['nivel'] ?? 'N/A',
+                      ala: item['ala'] ?? 'N/A',
                 id: id, // Solo pasamos el ID
               ),
             ),

@@ -1,19 +1,24 @@
 import 'dart:math';
+import 'package:app_seminco/mina%202/models/PlanCompleto.dart';
+import 'package:app_seminco/mina%202/screens/Sostenimiento/FormularioPerforacionScreen.dart';
 import 'package:flutter/material.dart';
 import 'package:app_seminco/database/database_helper_mina_2.dart';
 import 'package:app_seminco/mina%202/models/PlanMensual.dart';
 import 'package:app_seminco/mina%202/models/TipoPerforacion.dart';
 
-
 class RegistroPerforacionScreen extends StatefulWidget {
   final VoidCallback onDataInserted;
-  final int? operacionId; // Agregar operacionId como parámetro opcional
-final String tipoOperacion;
+  final int? estadoId; // Agregar estadoId como parámetro opcional
+  final String tipoOperacion;
+  final String estado;
+    final int operacionId;
   const RegistroPerforacionScreen({
     Key? key,
-     required this.tipoOperacion,
+    required this.tipoOperacion,
     required this.onDataInserted,
-    this.operacionId, // Inicializar en el constructor
+    required this.estado,
+     required this.operacionId,
+    this.estadoId, // Inicializar en el constructor
   }) : super(key: key);
 
   @override
@@ -22,10 +27,11 @@ final String tipoOperacion;
 }
 
 class _RegistroPerforacionScreenState extends State<RegistroPerforacionScreen> {
-    String? _selectedZona;
+  int? _perforacionId;
+  String? _selectedZona;
   String? _selectedTipoLabor;
   String? _selectedLabor;
-    String? _selectedAla;
+  String? _selectedAla;
   String? _selectedVeta;
   String? _selectedNivel;
   String? _selectedTipoPerforacion;
@@ -33,57 +39,85 @@ class _RegistroPerforacionScreenState extends State<RegistroPerforacionScreen> {
   final List<String> _zonas = [];
   final List<String> _tiposLabor = [];
   final List<String> _labores = [];
-    final List<String> _alas = [];
+  final List<String> _alas = [];
   final List<String> _vetas = [];
   final List<String> _niveles = [];
   final List<String> _tiposPerforacion = [];
 
   List<String> _filteredTiposLabor = [];
   List<String> _filteredLabores = [];
-    List<String> _filteredAlas = [];
+  List<String> _filteredAlas = [];
   List<String> _filteredVetas = [];
   List<String> _filteredNiveles = [];
-  List<PlanMensual> _planesCompletos = [];
+List<PlanCompleto> _planesCompletos = [];
 
   @override
   void initState() {
     super.initState();
-    _getTiposPerforacion(widget.tipoOperacion);
-    _getPlanesMen();
+  _getTiposPerforacion(widget.tipoOperacion);
+  _getPlanesMen();
+  _initializeData();
   }
- Future<void> _getTiposPerforacion(String tipoOperacion) async {
+
+Future<void> _initializeData() async {
+  final dbHelper = DatabaseHelper_Mina2();
   try {
-    final dbHelper = DatabaseHelper_Mina2();
-    List<TipoPerforacion> tipos = await dbHelper.getTiposPerforacion();
-
-    print("Tipos de Perforación obtenidos de la BD local:");
-    for (var tipo in tipos) {
-      print("ID: ${tipo.id}, Nombre: ${tipo.nombre}, Proceso: ${tipo.proceso}");
+    Map<String, dynamic>? perforacion = await dbHelper.getPerforacionesTaladroSostenimientoEstadoId(widget.estadoId!);
+    
+    if (perforacion != null) {
+       _perforacionId = perforacion['id']; 
+       print("id perforacion: $_perforacionId");
+      setState(() {
+        // Solo asigna el valor si está en la lista actual
+        _selectedZona = _zonas.contains(perforacion['zona']) ? perforacion['zona'] : null;
+        _selectedTipoLabor = _filteredTiposLabor.contains(perforacion['tipo_labor']) ? perforacion['tipo_labor'] : null;
+        _selectedLabor = _filteredLabores.contains(perforacion['labor']) ? perforacion['labor'] : null;
+        _selectedAla = _filteredAlas.contains(perforacion['ala']) ? perforacion['ala'] : null;
+        _selectedVeta = _filteredVetas.contains(perforacion['veta']) ? perforacion['veta'] : null;
+        _selectedNivel = _filteredNiveles.contains(perforacion['nivel']) ? perforacion['nivel'] : null;
+        _selectedTipoPerforacion = _tiposPerforacion.contains(perforacion['tipo_perforacion']) ? perforacion['tipo_perforacion'] : null;
+      });
     }
-
-    // Usar un Set para evitar duplicados
-    Set<String> tiposSet = {};
-
-    for (var tipo in tipos) {
-      if (tipo.proceso == tipoOperacion) { // Filtrar por tipoOperacion
-        tiposSet.add(tipo.nombre);
-      }
-    }
-
-    // Actualizar el estado del widget con la lista filtrada
-    setState(() {
-      _tiposPerforacion.clear();
-      _tiposPerforacion.addAll(tiposSet.where((element) => element.isNotEmpty));
-    });
-
   } catch (e) {
-    print("Error al obtener los tipos de perforación: $e");
+    print("Error en _initializeData: $e");
   }
 }
 
-void _guardarPerforacion() async {
-  List<String> camposFaltantes = [];
+  Future<void> _getTiposPerforacion(String tipoOperacion) async {
+    try {
+      final dbHelper = DatabaseHelper_Mina2();
+      List<TipoPerforacion> tipos = await dbHelper.getTiposPerforacion();
 
+      print("Tipos de Perforación obtenidos de la BD local:");
+      for (var tipo in tipos) {
+        print(
+            "ID: ${tipo.id}, Nombre: ${tipo.nombre}, Proceso: ${tipo.proceso}");
+      }
+
+      // Usar un Set para evitar duplicados
+      Set<String> tiposSet = {};
+
+      for (var tipo in tipos) {
+        if (tipo.proceso == tipoOperacion) {
+          // Filtrar por tipoOperacion
+          tiposSet.add(tipo.nombre);
+        }
+      }
+
+      // Actualizar el estado del widget con la lista filtrada
+      setState(() {
+        _tiposPerforacion.clear();
+        _tiposPerforacion
+            .addAll(tiposSet.where((element) => element.isNotEmpty));
+      });
+    } catch (e) {
+      print("Error al obtener los tipos de perforación: $e");
+    }
+  }
+
+void _guardarPerforacion() async {
+  // Validaciones (se mantienen igual que en tu código)
+  List<String> camposFaltantes = [];
   if (_selectedZona == null) camposFaltantes.add("Zona");
   if (_selectedTipoLabor == null) camposFaltantes.add("Tipo de Labor");
   if (_selectedLabor == null) camposFaltantes.add("Labor");
@@ -92,18 +126,16 @@ void _guardarPerforacion() async {
   if (_selectedTipoPerforacion == null) camposFaltantes.add("Tipo de Perforación");
 
   if (camposFaltantes.isNotEmpty) {
-    String mensajeError = "Falta seleccionar: ${camposFaltantes.join(", ")}";
-
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(mensajeError),
+        content: Text("Falta seleccionar: ${camposFaltantes.join(", ")}"),
         backgroundColor: Colors.red,
       ),
     );
     return;
   }
 
-  if (widget.operacionId == null) {
+  if (widget.estadoId == null) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text("No se encontró el ID de la operación."),
@@ -114,39 +146,115 @@ void _guardarPerforacion() async {
   }
 
   final dbHelper = DatabaseHelper_Mina2();
-  int nuevoId = await dbHelper.insertarPerforacionSostenimiento(
-    zona: _selectedZona!,
-    tipoLabor: _selectedTipoLabor!,
-    labor: _selectedLabor!,
-    ala: _selectedAla ?? '',
-    veta: _selectedVeta!,
-    nivel: _selectedNivel!,
-    tipoPerforacion: _selectedTipoPerforacion!,
-    operacionId: widget.operacionId!,
-  );
+  try {
+    if (_perforacionId != null) {
+      // ACTUALIZAR registro existente
+      await dbHelper.actualizarPerforacionSostenimiento(
+        id: _perforacionId!,
+        zona: _selectedZona!,
+        tipoLabor: _selectedTipoLabor!,
+        labor: _selectedLabor!,
+        ala: _selectedAla ?? '',
+        veta: _selectedVeta!,
+        nivel: _selectedNivel!,
+        tipoPerforacion: _selectedTipoPerforacion!,
+      );
 
-  ScaffoldMessenger.of(context).showSnackBar(
-    SnackBar(
-      content: Text("Registro guardado con ID: $nuevoId"),
-      backgroundColor: Colors.green,
-    ),
-  );
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Registro actualizado correctamente"),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } else {
+      // INSERTAR nuevo registro
+      int nuevoId = await dbHelper.insertarPerforacionSostenimiento(
+        zona: _selectedZona!,
+        tipoLabor: _selectedTipoLabor!,
+        labor: _selectedLabor!,
+        ala: _selectedAla ?? '',
+        veta: _selectedVeta!,
+        nivel: _selectedNivel!,
+        tipoPerforacion: _selectedTipoPerforacion!,
+        estadoId: widget.estadoId!,
+      );
 
-  // Llamar al callback para actualizar datos y cerrar el diálogo
-  widget.onDataInserted();
-  Navigator.pop(context); // 🔹 Cierra el diálogo
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Nuevo registro guardado con ID: $nuevoId"),
+          backgroundColor: Colors.green,
+        ),
+      );
+
+      await _initializeData(); // Refrescar para tener datos actualizados
+Navigator.of(context).pop();
+      // 🔵 Redirigir a FormularioScreen
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => FormularioScreen(
+           id: _perforacionId!, // ID real del registro
+                    operacionId: widget.operacionId, // ID de la operación
+                    estado: widget.estado, // Puedes obtener este valor de tu BD
+                    tipoOperacion: widget.tipoOperacion,
+                    nivel: _selectedNivel ?? 'Sin nivel',
+                    labor: _selectedLabor ?? 'Sin labor',
+                    zona: _selectedZona ?? 'sin zona',
+                    ala: 'null',
+                    tipo_labor: _selectedTipoLabor ?? 'tipo labor',
+          ),
+        ),
+      );
+    }
+  } catch (e) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text("Error al guardar: ${e.toString()}"),
+        backgroundColor: Colors.red,
+      ),
+    );
+  }
 }
-
-
 
 Future<void> _getPlanesMen() async {
   try {
     final dbHelper = DatabaseHelper_Mina2();
-    List<PlanMensual> planes = await dbHelper.getPlanes();
     
-    _planesCompletos = planes; // Store the complete data
+    final planesMensuales = await dbHelper.getPlanes();
+    final planesProduccion = await dbHelper.getPlanesProduccion();
+    final planesMetraje = await dbHelper.getPlanesMetraje();
 
-    print("Planes Mensuales obtenidos de la BD local:");
+    // Combinar todos en una lista de PlanCompleto
+    List<PlanCompleto> planes = [
+      ...planesMensuales.map((e) => PlanCompleto(
+        zona: e.zona ?? '',
+        tipoLabor: e.tipoLabor ?? '',
+        labor: e.labor ?? '',
+        ala: e.ala ?? '',
+        estructuraVeta: e.estructuraVeta ?? '',
+        nivel: e.nivel ?? '',
+      )),
+      ...planesProduccion.map((e) => PlanCompleto(
+        zona: e.zona ?? '',
+        tipoLabor: e.tipoLabor ?? '',
+        labor: e.labor ?? '',
+        ala: e.ala ?? '',
+        estructuraVeta: e.estructuraVeta ?? '',
+        nivel: e.nivel ?? '',
+      )),
+      ...planesMetraje.map((e) => PlanCompleto(
+        zona: e.zona ?? '',
+        tipoLabor: e.tipoLabor ?? '',
+        labor: e.labor ?? '',
+        ala: e.ala ?? '',
+        estructuraVeta: e.estructuraVeta ?? '',
+        nivel: e.nivel ?? '',
+      )),
+    ];
+
+    _planesCompletos = planes;
+
+    print("Planes combinados obtenidos de la BD local:");
 
     // Usar sets para evitar duplicados
     Set<String> zonasSet = {};
@@ -159,7 +267,6 @@ Future<void> _getPlanesMen() async {
     for (var plan in planes) {
       var planMap = plan.toMap();
 
-      // Agregar los valores únicos a los sets
       zonasSet.add(planMap['zona'] ?? '');
       tiposLaborSet.add(planMap['tipo_labor'] ?? '');
       laboresSet.add(planMap['labor'] ?? '');
@@ -168,27 +275,25 @@ Future<void> _getPlanesMen() async {
       nivelesSet.add(planMap['nivel'] ?? '');
     }
 
-    // Convertir los sets en listas y actualizar el estado del widget
     setState(() {
       _zonas.clear();
-      _zonas.addAll(zonasSet.where((element) => element.isNotEmpty));
+      _zonas.addAll(zonasSet.where((e) => e.isNotEmpty));
 
       _tiposLabor.clear();
-      _tiposLabor.addAll(tiposLaborSet.where((element) => element.isNotEmpty));
+      _tiposLabor.addAll(tiposLaborSet.where((e) => e.isNotEmpty));
 
       _labores.clear();
-      _labores.addAll(laboresSet.where((element) => element.isNotEmpty));
+      _labores.addAll(laboresSet.where((e) => e.isNotEmpty));
 
       _alas.clear();
-        _alas.addAll(alaSet.where((element) => element.isNotEmpty));
+      _alas.addAll(alaSet.where((e) => e.isNotEmpty));
 
       _vetas.clear();
-      _vetas.addAll(vetasSet.where((element) => element.isNotEmpty));
+      _vetas.addAll(vetasSet.where((e) => e.isNotEmpty));
 
       _niveles.clear();
-      _niveles.addAll(nivelesSet.where((element) => element.isNotEmpty));
-      
-      // Initialize filtered lists with all options
+      _niveles.addAll(nivelesSet.where((e) => e.isNotEmpty));
+
       _filteredTiposLabor = List.from(_tiposLabor);
       _filteredLabores = List.from(_labores);
       _filteredAlas = List.from(_alas);
@@ -313,103 +418,111 @@ Future<void> _getPlanesMen() async {
     });
   }
 
-@override
-Widget build(BuildContext context) {
-  return Scaffold(
-    appBar: AppBar(title: Text('Registro de Perforación')),
-    body: Padding(
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-  children: [
-    // Zona (único en una fila)
-    DropdownButtonFormField<String>(
-      isExpanded: true, // Add this to prevent overflow
-      value: _selectedZona,
-      decoration: const InputDecoration(labelText: 'Zona'),
-      items: _zonas.map((zona) {
-        return DropdownMenuItem<String>(
-          value: zona,
-          child: Text(
-            zona,
-            overflow: TextOverflow.ellipsis, // Handle text overflow
-          ),
-        );
-      }).toList(),
-      onChanged: (value) {
-        setState(() {
-          _selectedZona = value;
-          _selectedTipoLabor = null;
-          _selectedLabor = null;
-          _selectedAla = null;
-          _selectedVeta = null;
-          _selectedNivel = null;
-          _updateFilteredLists();
-        });
-      },
-    ),
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text('Registro de Perforación')),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          children: [
+            // Zona (único en una fila)
+            DropdownButtonFormField<String>(
+              isExpanded: true, // Add this to prevent overflow
+              value: _selectedZona,
+              decoration: const InputDecoration(labelText: 'Zona'),
+              items: _zonas.map((zona) {
+                return DropdownMenuItem<String>(
+                  value: zona,
+                  child: Text(
+                    zona,
+                    overflow: TextOverflow.ellipsis, // Handle text overflow
+                  ),
+                );
+              }).toList(),
+              onChanged: (value) {
+                setState(() {
+                  _selectedZona = value;
+                  _selectedTipoLabor = null;
+                  _selectedLabor = null;
+                  _selectedAla = null;
+                  _selectedVeta = null;
+                  _selectedNivel = null;
+                  _updateFilteredLists();
+                });
+              },
+            ),
 
-    const SizedBox(height: 10),
+            const SizedBox(height: 10),
 
-    Row(
-      children: [
-        Expanded(
-          child: DropdownButtonFormField<String>(
-            isExpanded: true, // Add this to prevent overflow
-            value: _selectedTipoLabor,
-            decoration: const InputDecoration(labelText: 'Tipo de Labor'),
-            items: _filteredTiposLabor.map((tipo) {
-              return DropdownMenuItem<String>(
-                value: tipo,
-                child: Text(
-                  tipo,
-                  overflow: TextOverflow.ellipsis, // Handle text overflow
+            Row(
+              children: [
+                Expanded(
+                  child: DropdownButtonFormField<String>(
+                    isExpanded: true, // Add this to prevent overflow
+                    value: _selectedTipoLabor,
+                    decoration:
+                        const InputDecoration(labelText: 'Tipo de Labor'),
+                    items: _filteredTiposLabor.map((tipo) {
+                      return DropdownMenuItem<String>(
+                        value: tipo,
+                        child: Text(
+                          tipo,
+                          overflow:
+                              TextOverflow.ellipsis, // Handle text overflow
+                        ),
+                      );
+                    }).toList(),
+                    onChanged: _selectedZona == null
+                        ? null
+                        : (value) {
+                            setState(() {
+                              _selectedTipoLabor = value;
+                              _selectedLabor = null;
+                              _selectedVeta = null;
+                              _selectedAla = null;
+                              _selectedNivel = null;
+                              _updateFilteredLists();
+                            });
+                          },
+                    disabledHint: const Text('Selecciona Zona primero'),
+                  ),
                 ),
-              );
-            }).toList(),
-            onChanged: _selectedZona == null ? null : (value) {
-              setState(() {
-                _selectedTipoLabor = value;
-                _selectedLabor = null;
-                _selectedAla = null;
-                _selectedVeta = null;
-                _selectedNivel = null;
-                _updateFilteredLists();
-              });
-            },
-            disabledHint: const Text('Selecciona Zona primero'),
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: DropdownButtonFormField<String>(
-            isExpanded: true, // Add this to prevent overflow
-            value: _selectedLabor,
-            decoration: const InputDecoration(labelText: 'Labor'),
-            items: _filteredLabores.map((labor) {
-              return DropdownMenuItem<String>(
-                value: labor,
-                child: Text(
-                  labor,
-                  overflow: TextOverflow.ellipsis, // Handle text overflow
+                const SizedBox(width: 10),
+                Expanded(
+                  child: DropdownButtonFormField<String>(
+                    isExpanded: true, // Add this to prevent overflow
+                    value: _selectedLabor,
+                    decoration: const InputDecoration(labelText: 'Labor'),
+                    items: _filteredLabores.map((labor) {
+                      return DropdownMenuItem<String>(
+                        value: labor,
+                        child: Text(
+                          labor,
+                          overflow:
+                              TextOverflow.ellipsis, // Handle text overflow
+                        ),
+                      );
+                    }).toList(),
+                    onChanged: _selectedTipoLabor == null
+                        ? null
+                        : (value) {
+                            setState(() {
+                              _selectedLabor = value;
+                              _selectedAla = null;
+                              _selectedVeta = null;
+                              _selectedNivel = null;
+                              _updateFilteredLists();
+                            });
+                          },
+                    disabledHint:
+                        const Text('Selecciona Tipo de Labor primero'),
+                  ),
                 ),
-              );
-            }).toList(),
-            onChanged: _selectedTipoLabor == null ? null : (value) {
-              setState(() {
-                _selectedLabor = value;
-                _selectedAla = null;
-                _selectedVeta = null;
-                _selectedNivel = null;
-                _updateFilteredLists();
-              });
-            },
-            disabledHint: const Text('Selecciona Tipo de Labor primero'),
-          ),
-        ),
-      ],
-    ),
+              ],
+            ),
 
-    const SizedBox(height: 10),
+            const SizedBox(height: 10),
 
             Row(
               children: [
@@ -535,16 +648,76 @@ Widget build(BuildContext context) {
                 ),
               ],
             ),
-    const SizedBox(height: 20),
-            ElevatedButton(
-  onPressed: _guardarPerforacion,
-  child: const Text('Guardar'),
-),
+            const SizedBox(height: 30),
 
-  ],
-),
+Column(
+  crossAxisAlignment: CrossAxisAlignment.stretch,
+  children: [
+    // 🔵 Botón Guardar (solo)
+    ElevatedButton(
+      onPressed: _guardarPerforacion,
+      child: const Text('Guardar'),
     ),
-  );
-}
 
+    const SizedBox(height: 10), // Espacio vertical entre botones
+
+    // 🔵 Fila con Registro y Cerrar
+    Row(
+      children: [
+        // 🔹 Botón Registro
+        Expanded(
+          child: Tooltip(
+            message: _perforacionId == null ? 'Primero debe guardar un registro' : '',
+            child: ElevatedButton(
+              onPressed: _perforacionId != null
+                  ? () {
+                      Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => FormularioScreen(
+                    id: _perforacionId!, // ID real del registro
+                    operacionId: widget.operacionId, // ID de la operación
+                    estado: widget.estado, // Puedes obtener este valor de tu BD
+                    tipoOperacion: widget.tipoOperacion,
+                    nivel: _selectedNivel ?? 'Sin nivel',
+                    labor: _selectedLabor ?? 'Sin labor',
+                    zona: _selectedZona ?? 'sin zona',
+                    ala: 'null',
+                    tipo_labor: _selectedTipoLabor ?? 'tipo labor',
+                  ),
+                ),
+              );
+                    }
+                  : null,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _perforacionId != null ? null : Colors.grey[300],
+              ),
+              child: const Text('Registro'),
+            ),
+          ),
+        ),
+
+        const SizedBox(width: 10),
+
+        // 🔴 Botón Cerrar
+        Expanded(
+          child: ElevatedButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+            },
+            
+            child: const Text('No aplica'),
+          ),
+        ),
+      ],
+    ),
+  ],
+)
+
+
+          ],
+        ),
+      ),
+    );
+  }
 }

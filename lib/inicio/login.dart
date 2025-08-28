@@ -1,15 +1,13 @@
 import 'package:app_seminco/database/database_helper.dart';
 import 'package:app_seminco/database/database_helper_mina_2.dart';
 import 'package:app_seminco/mina%201/screens/Dash/reporte_sreen.dart';
-import 'package:app_seminco/mina%201/services/Enviar%20nube/ExploracionService_service.dart';
 import 'package:app_seminco/mina%201/services/api_service.dart';
-import 'package:app_seminco/mina%201/services/ingreso%20nube/ApiServiceExploracion.dart';
 import 'package:app_seminco/mina%201/services/user_service.dart';
 import 'package:app_seminco/mina%202/screens/Dash/reporte_sreen.dart';
 import 'package:app_seminco/mina%202/services/api_service.dart';
-import 'package:app_seminco/mina%202/services/ingreso%20nube/ApiServiceExploracion.dart';
 import 'package:app_seminco/mina%202/services/user_service.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 
 class LoginScreen extends StatefulWidget {
@@ -41,15 +39,38 @@ Future<void> handleLogin() async {
       // Configurar base de datos MINA 1 primero
       await DatabaseHelper_Mina1().setCurrentUserDni(dni);
       await DatabaseHelper_Mina1().saveUser(userDataMina1, pass);
-      await fetchExploracionesMina1(tokenMina1);
 
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => ReporteScreenMina1(
-          token: tokenMina1, 
-          dni: dni,
-        )),
-      );
+//       final connectivityService = ConnectivityService();
+// final backgroundSyncService = BackgroundSyncService(
+//   connectivityService: connectivityService,
+// );
+
+// Navigator.pushReplacement(
+//   context,
+//   MaterialPageRoute(
+//     builder: (context) => MultiProvider(
+//       providers: [
+//         // ChangeNotifierProvider(create: (_) => connectivityService),
+//         // Provider.value(value: backgroundSyncService),
+//       ],
+//       child: ReporteScreenMina1(
+//         token: tokenMina1,
+//         dni: dni,
+//       ),
+//     ),
+//   ),
+// );
+
+Navigator.pushReplacement(
+  context,
+  MaterialPageRoute(
+    builder: (context) => ReporteScreenMina1(
+      token: tokenMina1,
+      dni: dni,
+    ),
+  ),
+);
+
       return;
     } catch (e1) {
       print("Login online Mina 1 fallido: $e1");
@@ -63,15 +84,35 @@ Future<void> handleLogin() async {
       // Configurar base de datos MINA 2
       await DatabaseHelper_Mina2().setCurrentUserDni(dni);
       await DatabaseHelper_Mina2().saveUser(userDataMina2, pass);
-      await fetchExploracionesMina2(tokenMina2);
 
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => ReporteScreenMina2(
-          token: tokenMina2, 
-          dni: dni,
-        )),
-      );
+// final connectivityServiceMina2 = ConnectivityServiceMina2();
+// final backgroundSyncServiceMina2 = BackgroundSyncServiceMina2(
+//   connectivityServiceMina2: connectivityServiceMina2,
+// );
+//       Navigator.pushReplacement(
+//   context,
+//   MaterialPageRoute(
+//     builder: (context) => MultiProvider(
+//       providers: [
+//         // ChangeNotifierProvider(create: (_) => connectivityServiceMina2),
+//         // Provider.value(value: backgroundSyncServiceMina2),
+//       ],
+//       child: ReporteScreenMina2(
+//         token: tokenMina2,
+//         dni: dni,
+//       ),
+//     ),
+//   ),
+// );
+Navigator.pushReplacement(
+  context,
+  MaterialPageRoute(
+    builder: (context) => ReporteScreenMina2(
+      token: tokenMina2,
+      dni: dni,
+    ),
+  ),
+);
       return;
     } catch (e2) {
       print("Login online Mina 2 fallido: $e2");
@@ -84,13 +125,35 @@ Future<void> handleLogin() async {
       final offlineLoginMina1 = await DatabaseHelper_Mina1().loginOffline(dni, pass);
       
       if (offlineLoginMina1) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => ReporteScreenMina1(
-            token: "offline", 
-            dni: dni,
-          )),
-        );
+//               final connectivityService = ConnectivityService();
+// final backgroundSyncService = BackgroundSyncService(
+//   connectivityService: connectivityService,
+// );
+
+// Navigator.pushReplacement(
+//   context,
+//   MaterialPageRoute(
+//     builder: (context) => MultiProvider(
+//       providers: [
+//         // ChangeNotifierProvider(create: (_) => connectivityService),
+//         // Provider.value(value: backgroundSyncService),
+//       ],
+//       child: ReporteScreenMina1(
+//         token: "offline",
+//         dni: dni,
+//       ),
+//     ),
+//   ),
+// );
+Navigator.pushReplacement(
+  context,
+  MaterialPageRoute(
+    builder: (context) => ReporteScreenMina1(
+      token: "offline",
+      dni: dni,
+    ),
+  ),
+);
         return;
       }
 
@@ -99,13 +162,34 @@ Future<void> handleLogin() async {
       final offlineLoginMina2 = await DatabaseHelper_Mina2().loginOffline(dni, pass);
       
       if (offlineLoginMina2) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => ReporteScreenMina2(
-            token: "offline", 
-            dni: dni,
-          )),
-        );
+//        final connectivityServiceMina2 = ConnectivityServiceMina2();
+// final backgroundSyncServiceMina2 = BackgroundSyncServiceMina2(
+//   connectivityServiceMina2: connectivityServiceMina2,
+// );
+//       Navigator.pushReplacement(
+//   context,
+//   MaterialPageRoute(
+//     builder: (context) => MultiProvider(
+//       providers: [
+//         // ChangeNotifierProvider(create: (_) => connectivityServiceMina2),
+//         // Provider.value(value: backgroundSyncServiceMina2),
+//       ],
+//       child: ReporteScreenMina2(
+//         token: "offline",
+//         dni: dni,
+//       ),
+//     ),
+//   ),
+// );
+Navigator.pushReplacement(
+  context,
+  MaterialPageRoute(
+    builder: (context) => ReporteScreenMina2(
+      token: "offline",
+      dni: dni,
+    ),
+  ),
+);
         return;
       }
     } catch (offlineError) {
@@ -137,25 +221,6 @@ void _showLoginError() {
   );
 }
 
-
-
-Future<void> fetchExploracionesMina1(String token) async {
-  try {
-    final apiService = ApiServiceExploracion_Mina1();
-    await apiService.fetchExploracionesMina1(token);
-  } catch (e) {
-    throw Exception('Error al obtener exploraciones: $e');
-  }
-}
-
-Future<void> fetchExploracionesMina2(String token) async {
-  try {
-    final apiService = ApiServiceExploracion_Mina2();
-    await apiService.fetchExploracionesMina2(token);
-  } catch (e) {
-    throw Exception('Error al obtener exploraciones: $e');
-  }
-}
 
 
   @override
