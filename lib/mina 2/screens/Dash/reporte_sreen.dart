@@ -33,6 +33,9 @@ import 'dart:convert';
 
 import 'package:provider/provider.dart';
 
+import '../../services/ApiServiceOrigenDestino.dart';
+import '../carguio/lista_perforacion_sreen.dart';
+
 class ReporteScreenMina2 extends StatefulWidget {
   final String token;
   final dynamic dni;
@@ -96,6 +99,7 @@ class _ReporteScreenMina2State extends State<ReporteScreenMina2> {
         "Plan Producción": () => fetchPlanProduccion(anio, mes),
         "Toneladas": fetchToneladas,
         "Checklist": fetchCheckList,
+        "origen-destino": fetchOrigenDestino,
         "pdf": () => fetchPdfsDelMes(mes),
       };
 
@@ -202,6 +206,24 @@ class _ReporteScreenMina2State extends State<ReporteScreenMina2> {
       });
     }
   }
+
+  Future<void> fetchOrigenDestino() async {
+  try {
+    final apiService = ApiServiceOrigenDestino(); // Crear instancia del service
+
+    // Obtener registros desde la API
+    final origenesDestinos = await apiService.fetchOrigenDestino(widget.token);
+    print("Origen/Destino cargados correctamente: $origenesDestinos");
+
+    // Verificar si los datos se almacenaron correctamente en la base de datos local
+    final dbHelper = DatabaseHelper_Mina2();
+    final origenesDestinosBD = await dbHelper.getAll('OrigenDestino');
+    print("Origen/Destino en la base de datos local: $origenesDestinosBD");
+  } catch (e) {
+    print("Error al cargar Origen/Destino: $e");
+  }
+}
+
 
   Future<void> fetchFormatosPlanMineral() async {
     setState(() {
@@ -718,8 +740,9 @@ Future<void> fetchCheckList() async {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => ListaPerforacionScreen(
+                  builder: (context) => ListaPerforacionCargioScreen(
                     tipoOperacion: 'CARGUÍO',
+                    rolUsuario: rol,
                   ),
                 ),
               );

@@ -149,30 +149,36 @@ Future<void> _cargarExploraciones() async {
     final dbHelper = DatabaseHelper_Mina1();
     final exploraciones = await dbHelper.obtenerExploracionesCompletas();
 
+    if (!mounted) return; // <-- evita setState si el widget ya no está en el árbol
+
     setState(() {
       _exploracionesSucio = exploraciones;
       _isLoading = false;
     });
-    
+
     // Si ya tenemos los tipos de perforación, aplicar el filtro
     if (_tiposPerforacion.isNotEmpty) {
       _filtrarExploraciones();
     }
     if (_explosivos.isNotEmpty) {
-        calcularKgExplosivos();
-      }
-       if (_toneladas.isNotEmpty) {
+      calcularKgExplosivos();
+    }
+    if (_toneladas.isNotEmpty) {
       _asignarToneladasAExploraciones();
     }
   } catch (e) {
+    if (!mounted) return;
+
     setState(() {
       _isLoading = false;
     });
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('Error al cargar exploraciones: $e')),
     );
   }
 }
+
 
   void calcularKgExplosivos() {
     for (var registro in _exploracionesSucio) {

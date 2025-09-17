@@ -71,7 +71,7 @@ Future<void> _eliminarSeleccionadas() async {
       await DatabaseHelper_Mina1().actualizarMedicionExplosivoACero(idsExplosivo);
 
       // ✅ Eliminar las mediciones seleccionadas
-      await DatabaseHelper_Mina1().eliminarMultiplesMedicionesLargo(_selectedIds.toList());
+      await DatabaseHelper_Mina1().eliminarMultiplesMedicionesHorizontal(_selectedIds.toList());
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('${_selectedIds.length} mediciones eliminadas correctamente')),
@@ -205,6 +205,14 @@ Future<void> _eliminarSeleccionadas() async {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
+                              _buildCheckInfo('No aplica', medicion['no_aplica']),
+                              _buildCheckInfo('Remanente', medicion['remanente']),
+                            ],
+                          ),
+                          SizedBox(height: 8),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
                               _buildStatusChip(medicion['envio'] == 1),
                               Text(
                                 'Tipo: ${medicion['tipo_perforacion'] ?? 'No especificado'}',
@@ -227,6 +235,22 @@ Future<void> _eliminarSeleccionadas() async {
       children: [
         Text(label, style: TextStyle(fontSize: 12, color: Colors.grey)),
         Text(value, style: TextStyle(fontWeight: FontWeight.bold)),
+      ],
+    );
+  }
+
+    Widget _buildCheckInfo(String label, dynamic value) {
+    final esSi = value == 1;
+    return Column(
+      children: [
+        Text(label, style: TextStyle(fontSize: 12, color: Colors.grey)),
+        Text(
+          esSi ? 'Sí' : 'No',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: esSi ? Colors.green[800] : Colors.red[800],
+          ),
+        ),
       ],
     );
   }

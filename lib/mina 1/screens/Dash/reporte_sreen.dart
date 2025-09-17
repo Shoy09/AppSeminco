@@ -27,6 +27,7 @@ import 'package:app_seminco/mina%201/services/api_service_toneladas.dart';
 import 'package:app_seminco/mina%201/services/api_services_Empresa.dart';
 import 'package:app_seminco/mina%201/services/api_services_Equipo.dart';
 import 'package:app_seminco/mina%201/services/ingreso%20nube/ApiServiceExploracion.dart';
+import 'package:app_seminco/mina%201/services/ingreso%20nube/ApiServiceMedicionesHorizontal.dart';
 import 'package:flutter/material.dart';
 import 'dart:convert';
 
@@ -48,7 +49,7 @@ class _ReporteScreenMina1State extends State<ReporteScreenMina1> {
   List<FormatoPlanMineral> formatos = [];
   String nombreUsuario = "Cargando...";
   String rol = "Cargando...";
-  bool isLoading = false;
+
   late ApiServiceEstado estadoService;
   Map<String, dynamic> operacionesAutorizadas = {};
 
@@ -84,7 +85,6 @@ class _ReporteScreenMina1State extends State<ReporteScreenMina1> {
       final mes = ultimaFecha.mes!;
 
       final Map<String, Future<void> Function()> requests = {
-        "Formatos Plan Mineral": fetchFormatosPlanMineral,
         "Estados": fetchEstados,
         "Tipos Perforación": fetchTiposPerforacion,
         "Empresas": fetchEmpresa,
@@ -159,54 +159,44 @@ class _ReporteScreenMina1State extends State<ReporteScreenMina1> {
     return operacionesAutorizadas[operacion] == true;
   }
 
-  Future<void> _cargarNombreUsuario() async {
-    try {
-      final dbHelper = DatabaseHelper_Mina1();
-      final usuario = await dbHelper.getUserByDni(widget.dni);
-      if (usuario != null) {
-        setState(() {
-          nombreUsuario = usuario['nombres'];
-          rol = usuario['rol'];
+Future<void> _cargarNombreUsuario() async {
+  try {
+    final dbHelper = DatabaseHelper_Mina1();
+    final usuario = await dbHelper.getUserByDni(widget.dni);
 
-          final operacionesJson = usuario['operaciones_autorizadas'];
-          if (operacionesJson != null && operacionesJson.isNotEmpty) {
-            operacionesAutorizadas = jsonDecode(operacionesJson);
-          }
-        });
-      } else {
-        setState(() {
-          nombreUsuario = "Usuario no encontrado";
-          rol = "sin rol";
-        });
-      }
-    } catch (e) {
-      print('Error obteniendo usuario: $e');
+    print("Usuario obtenido de la DB: $usuario"); // <-- aquí ves todo el Map
+
+    if (usuario != null) {
       setState(() {
-        nombreUsuario = "Error al cargar usuario";
-        rol = "Error al cargar rol";
-      });
-    }
-  }
+        nombreUsuario = usuario['nombres'];
+        rol = usuario['rol'];
 
-  Future<void> fetchFormatosPlanMineral() async {
+        print("Nombre cargado: $nombreUsuario");
+        print("Rol cargado: $rol");
+
+        final operacionesJson = usuario['operaciones_autorizadas'];
+        if (operacionesJson != null && operacionesJson.isNotEmpty) {
+          operacionesAutorizadas = jsonDecode(operacionesJson);
+          print("Operaciones autorizadas: $operacionesAutorizadas");
+        }
+      });
+    } else {
+      setState(() {
+        nombreUsuario = "Usuario no encontrado";
+        rol = "sin rol";
+      });
+      print("No se encontró usuario con DNI ${widget.dni}");
+    }
+  } catch (e) {
+    print('Error obteniendo usuario: $e');
     setState(() {
-      isLoading = true; // Mostrar pantalla de carga
+      nombreUsuario = "Error al cargar usuario";
+      rol = "Error al cargar rol";
     });
-
-    try {
-      final result = await apiService.fetchFormatosPlanMineral(widget.token);
-      setState(() {
-        formatos = result;
-      });
-      await apiService.saveFormatosToLocalDB(result);
-    } catch (e) {
-      print('Error al cargar los formatos: $e');
-    } finally {
-      setState(() {
-        isLoading = false; // Ocultar pantalla de carga después de fetchEstados
-      });
-    }
   }
+}
+
+
 
   Future<void> fetchEstados() async {
     try {
@@ -244,6 +234,43 @@ class _ReporteScreenMina1State extends State<ReporteScreenMina1> {
     }
   }
 
+Future<void> actualizarExploracionesYMediciones(BuildContext context) async {
+  // 🔹 Mostrar el primer diálogo
+  showDialog(
+    context: context,
+    barrierDismissible: false,
+    builder: (_) => ProgressDialog(message: 'Cargando exploraciones...'),
+  );
+
+  try {
+    // 1️⃣ Ejecutar exploraciones primero
+    await fetchExploracionesMina1();
+
+    // 🔹 Cambiar mensaje del diálogo
+    Navigator.of(context).pop();
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => ProgressDialog(message: 'Cargando mediciones...'),
+    );
+
+    // 2️⃣ Cuando termine, ejecutar mediciones
+    await fetchMedicionesConRemanente();
+
+    // 🔹 Cerrar el diálogo al terminar
+    Navigator.of(context).pop();
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("✅ Exploraciones y mediciones actualizadas")),
+    );
+  } catch (e) {
+    Navigator.of(context).pop(); // cerrar diálogo si hay error
+    print("⚠ Error en la actualización: $e");
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("❌ Error en la actualización")),
+    );
+  }
+}
+
     Future<void> fetchExploracionesMina1() async {
     try {
       final apiService = ApiServiceExploracion_Mina1(); // ✅ Crear una instancia
@@ -259,6 +286,23 @@ class _ReporteScreenMina1State extends State<ReporteScreenMina1> {
       print("Error al cargar los tipos de perforación: $e");
     }
   }
+
+  Future<void> fetchMedicionesConRemanente() async {
+  try {
+    final apiService = ApiServiceMedicionesHorizontal(); // ✅ instancia del service
+
+    final mediciones = await apiService.fetchMedicionesConRemanente(widget.token);
+    print("✔ Mediciones con remanente cargadas correctamente. Total: ${mediciones.length}");
+
+    // (opcional) revisar que se guardó en SQLite
+    final dbHelper = DatabaseHelper_Mina1();
+    final registros = await dbHelper.getAll('mediciones_horizontal');
+    print("📀 Mediciones en la base de datos local: $registros");
+  } catch (e) {
+    print("⚠ Error al cargar mediciones con remanente: $e");
+  }
+}
+
 
 Future<void> fetchPdfsDelMes(String mes) async {
   try {
@@ -503,7 +547,7 @@ Future<void> fetchToneladas() async {
                 await _actualizarDatos(context);
               } 
               else if (value == 'mediciones') {
-                await fetchExploracionesMina1();
+                await actualizarExploracionesYMediciones(context);
               } else if (value == 'cerrar_sesion') {
                 // Navegar a la pantalla de login y limpiar el stack de navegación
                 Navigator.of(context).pushAndRemoveUntil(

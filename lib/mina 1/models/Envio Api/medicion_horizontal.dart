@@ -14,6 +14,9 @@ class MedicionHorizontal {
   final int? envio;
   final int? idExplosivo;
   final int? idnube;
+  final int? noAplica;   // <--- Nuevo
+  final int? remanente;  // <--- Nuevo
+  final String? semana;
 
   MedicionHorizontal({
     this.id,
@@ -31,6 +34,9 @@ class MedicionHorizontal {
     this.envio,
     this.idExplosivo,
     this.idnube,
+    this.noAplica,
+    this.remanente,
+    this.semana,
   });
 
   factory MedicionHorizontal.fromJson(Map<String, dynamic> json) {
@@ -50,6 +56,9 @@ class MedicionHorizontal {
       envio: json['envio'],
       idExplosivo: json['id_explosivo'],
       idnube: json['idnube'],
+      noAplica: json['no_aplica'],
+      remanente: json['remanente'],
+      semana: json['semana'],
     );
   }
 
@@ -69,6 +78,9 @@ class MedicionHorizontal {
         if (envio != null) 'envio': envio,
         if (idExplosivo != null) 'id_explosivo': idExplosivo,
         if (idnube != null) 'idnube': idnube,
+        if (noAplica != null) 'no_aplica': noAplica,
+        if (remanente != null) 'remanente': remanente,
+        if (semana != null) 'semana': semana,
       };
 
   // Método toJson para uso local (incluye el ID)
@@ -88,5 +100,8 @@ class MedicionHorizontal {
         'envio': envio,
         'id_explosivo': idExplosivo,
         'idnube': idnube,
+        'no_aplica': noAplica,
+        'remanente': remanente,
+        'semana': semana,
       };
 }

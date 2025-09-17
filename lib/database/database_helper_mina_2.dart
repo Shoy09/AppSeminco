@@ -24,7 +24,7 @@ class DatabaseHelper_Mina2 {
   static Database? _database;
   static String? _currentUserDni;
   static bool _isInitialized = false;
-  static const int _currentDbVersion = 9;
+  static const int _currentDbVersion = 12;
 
   DatabaseHelper_Mina2._internal() {
     // Inicialización única para evitar múltiples llamadas
@@ -307,17 +307,20 @@ await db.execute('''
       ''');
 
     // 🔹 Carguío
-    await db.execute('''
-        CREATE TABLE Carguio(
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          estado_id INTEGER,
-          tipo_material TEXT,
-          volumen REAL,
-          maquinaria TEXT,
-          operador TEXT,
-          FOREIGN KEY(estado_id) REFERENCES Estado(id) ON DELETE CASCADE
-        )
-      ''');
+await db.execute('''
+  CREATE TABLE Carguio(
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    estado_id INTEGER,
+    tipo_labor TEXT,
+    labor TEXT,
+    tipo_labor_manual TEXT,
+    labor_manual TEXT,
+    ncucharas INTEGER,
+    observacion TEXT,
+    FOREIGN KEY(estado_id) REFERENCES Estado(id) ON DELETE CASCADE
+  )
+''');
+
 
     // 🔹 Acarreo
     await db.execute('''
@@ -339,7 +342,7 @@ await db.execute('''
     await db.execute('''
   CREATE TABLE Usuario (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    codigo_dni TEXT NOT NULL,
+    codigo_dni TEXT NOT NULL UNIQUE,
     apellidos TEXT NOT NULL,
     nombres TEXT NOT NULL,
     cargo TEXT,
@@ -348,7 +351,7 @@ await db.execute('''
     autorizado_equipo TEXT,
     area TEXT,
     clasificacion TEXT,
-    correo TEXT UNIQUE,
+    correo TEXT,
     password TEXT NOT NULL,
     firma TEXT,
     rol TEXT,
@@ -782,6 +785,16 @@ await db.execute('''
 ''');
 
 await db.execute('''
+  CREATE TABLE IF NOT EXISTS OrigenDestino (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    operacion TEXT NOT NULL,
+    tipo TEXT NOT NULL,
+    nombre TEXT NOT NULL
+  )
+''');
+
+
+await db.execute('''
   CREATE TABLE IF NOT EXISTS PdfModel (
     id INTEGER PRIMARY KEY,
     proceso TEXT NOT NULL,
@@ -906,6 +919,88 @@ if (oldVersion < 9) {
     ''');
   }
 }
+if (oldVersion < 10) {
+  if (await _tablaExiste(db, 'Carguio')) {
+    // Verificar y agregar columnas nuevas si no existen
+    if (!await _columnaExiste(db, 'Carguio', 'tipo_labor')) {
+      await db.execute("ALTER TABLE Carguio ADD COLUMN tipo_labor TEXT");
+    }
+    if (!await _columnaExiste(db, 'Carguio', 'labor')) {
+      await db.execute("ALTER TABLE Carguio ADD COLUMN labor TEXT");
+    }
+    if (!await _columnaExiste(db, 'Carguio', 'tipo_labor_manual')) {
+      await db.execute("ALTER TABLE Carguio ADD COLUMN tipo_labor_manual TEXT");
+    }
+    if (!await _columnaExiste(db, 'Carguio', 'labor_manual')) {
+      await db.execute("ALTER TABLE Carguio ADD COLUMN labor_manual TEXT");
+    }
+    if (!await _columnaExiste(db, 'Carguio', 'ncucharas')) {
+      await db.execute("ALTER TABLE Carguio ADD COLUMN ncucharas INTEGER");
+    }
+    if (!await _columnaExiste(db, 'Carguio', 'observacion')) {
+      await db.execute("ALTER TABLE Carguio ADD COLUMN observacion TEXT");
+    }
+  }
+}
+if (oldVersion < 11) {
+  // Crear tabla OrigenDestino si no existe
+  if (!await _tablaExiste(db, 'OrigenDestino')) {
+    await db.execute('''
+      CREATE TABLE OrigenDestino (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        operacion TEXT NOT NULL,
+        tipo TEXT NOT NULL,
+        nombre TEXT NOT NULL
+      )
+    ''');
+  }
+} if (oldVersion < 12) {
+  if (await _tablaExiste(db, 'Usuario')) {
+
+    // 1. Crear tabla temporal con codigo_dni UNIQUE y correo sin UNIQUE
+    await db.execute('''
+      CREATE TABLE Usuario_temp (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        codigo_dni TEXT NOT NULL UNIQUE,
+        apellidos TEXT NOT NULL,
+        nombres TEXT NOT NULL,
+        cargo TEXT,
+        empresa TEXT,
+        guardia TEXT,
+        autorizado_equipo TEXT,
+        area TEXT,
+        clasificacion TEXT,
+        correo TEXT,
+        password TEXT NOT NULL,
+        firma TEXT,
+        rol TEXT,
+        operaciones_autorizadas TEXT,
+        createdAt TEXT NOT NULL,
+        updatedAt TEXT NOT NULL
+      )
+    ''');
+
+    // 2. Copiar datos de la tabla vieja a la temporal
+    await db.execute('''
+      INSERT OR IGNORE INTO Usuario_temp (
+        id, codigo_dni, apellidos, nombres, cargo, empresa, guardia, autorizado_equipo,
+        area, clasificacion, correo, password, firma, rol, operaciones_autorizadas,
+        createdAt, updatedAt
+      )
+      SELECT 
+        id, codigo_dni, apellidos, nombres, cargo, empresa, guardia, autorizado_equipo,
+        area, clasificacion, correo, password, firma, rol, operaciones_autorizadas,
+        createdAt, updatedAt
+      FROM Usuario
+    ''');
+
+    // 3. Borrar la tabla vieja
+    await db.execute('DROP TABLE Usuario');
+
+    // 4. Renombrar la tabla temporal
+    await db.execute('ALTER TABLE Usuario_temp RENAME TO Usuario');
+  }
+}
 
 }
 
@@ -1027,6 +1122,27 @@ Future<bool> _tablaExiste(Database db, String tableName) async {
 
     return perforacionesRaw.map((p) => Map<String, dynamic>.from(p)).toList();
   }
+
+  Future<List<Map<String, dynamic>>> getCarguios(int operacionId) async {
+  final db = await database;
+
+  final List<Map<String, dynamic>> carguiosRaw = await db.rawQuery('''
+    SELECT 
+      id, 
+      estado_id, 
+      tipo_labor, 
+      labor, 
+      tipo_labor_manual, 
+      labor_manual, 
+      ncucharas, 
+      observacion
+    FROM Carguio
+    WHERE estado_id = ?
+  ''', [operacionId]);
+
+  return carguiosRaw.map((c) => Map<String, dynamic>.from(c)).toList();
+}
+
 
 Future<Map<String, dynamic>?> getPerforacionTaladroLargoByEstadoId(int estadoId) async {
   final db = await database;
@@ -1173,6 +1289,59 @@ Future<Map<String, dynamic>?> getPerforacionTaladroLargoByEstadoId(int estadoId)
     return await db.insert('Sostenimiento', datos);
   }
 
+  Future<int> insertarCarguio({
+  required String tipoLabor,
+  required String labor,
+  required String tipoLaborManual,
+  required String laborManual,
+  required int ncucharas,
+  required int estadoId,
+  String? observacion,
+}) async {
+  final Database db = await DatabaseHelper_Mina2().database;
+
+  Map<String, dynamic> datos = {
+    'tipo_labor': tipoLabor,
+    'labor': labor,
+    'tipo_labor_manual': tipoLaborManual,
+    'labor_manual': laborManual,
+    'ncucharas': ncucharas,
+    'estado_id': estadoId,
+    'observacion': observacion,
+  };
+
+  return await db.insert('Carguio', datos);
+}
+
+Future<int> actualizarCarguio({
+  required int id, // id del registro a actualizar
+  required String tipoLabor,
+  required String labor,
+  required String tipoLaborManual,
+  required String laborManual,
+  required int ncucharas,
+  String? observacion,
+}) async {
+  final Database db = await DatabaseHelper_Mina2().database;
+
+  Map<String, dynamic> datos = {
+    'tipo_labor': tipoLabor,
+    'labor': labor,
+    'tipo_labor_manual': tipoLaborManual,
+    'labor_manual': laborManual,
+    'ncucharas': ncucharas,
+    'observacion': observacion,
+  };
+
+  return await db.update(
+    'Carguio',
+    datos,
+    where: 'id = ?',
+    whereArgs: [id],
+  );
+}
+
+
   Future<List<Map<String, dynamic>>> getPerforacionesTaladroHorizontal(
       int operacionId) async {
     final db = await database;
@@ -1201,6 +1370,23 @@ Future<Map<String, dynamic>?> getPerforacionTaladroLargoByEstadoId(int estadoId)
     return null; // No se encontró ningún registro
   }
 }
+
+Future<Map<String, dynamic>?> getCarguioEstadoId(int estadoId) async {
+  final db = await database;
+
+  final List<Map<String, dynamic>> result = await db.rawQuery('''
+    SELECT id, tipo_labor, labor, tipo_labor_manual, labor_manual, ncucharas, observacion
+    FROM Carguio
+    WHERE estado_id = ?
+  ''', [estadoId]);
+
+  if (result.isNotEmpty) {
+    return Map<String, dynamic>.from(result.first);
+  } else {
+    return null; // No se encontró ningún registro
+  }
+}
+
 
   Future<int> actualizarPerforacionHorizontal({
   required int id, // Necesitas el id del registro a actualizar
@@ -3352,6 +3538,16 @@ Future<int> actualizarSubEstado(Database db, int subEstadoId, String codigo, Str
     },
     where: 'id = ?',
     whereArgs: [subEstadoId],
+  );
+}
+
+Future<List<Map<String, dynamic>>> getOrigenDestinoPorOperacion(String operacion) async {
+  final db = await database; // instancia de tu DB
+
+  return await db.query(
+    'OrigenDestino',
+    where: 'operacion = ?',
+    whereArgs: [operacion],
   );
 }
 

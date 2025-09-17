@@ -1,6 +1,6 @@
 class ApiConfig_mina2 {
-  static const String baseUrl =
-      'https://backend-seminco-mina-02.onrender.com/api';
+  static const String baseUrl = 'https://backend-seminco-pro-02.vercel.app/api';
+      //'https://backend-seminco-mina-02.onrender.com/api';
       // 'https://backendseminco-production.up.railway.app/api';
   static const String loginEndpoint =
       '/auth/login'; // Asegurando que el endpoint es correcto
@@ -27,6 +27,9 @@ class ApiConfig_mina2 {
       '/operacion/sostenimiento';
   static const String operacionSostenimientoEndpointActualiza =
       '/operacion/update-sostenimiento';
+
+  static const String operacioncarguioEndpoint =
+      '/operacion/carguio';
   static const String datosExploracionesEndpoint = '/NubeDatosExploraciones';
     static const String datosExploracionesmedionesEndpoint = '/NubeDatosExploraciones/Explo-medicion';
   static const String perforacionEndpoint = '/mediciones';
@@ -36,4 +39,5 @@ class ApiConfig_mina2 {
   static const String toneladasEndpoint = '/toneladas';
   static const String checklistEndpoint = '/check-list';
   static const String pdfEndpoint = '/pdf-operacion';
+  static const String origenDestinoEndpoint = '/origen-destino';
 }

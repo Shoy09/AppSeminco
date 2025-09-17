@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:app_seminco/database/database_helper.dart';
+import 'package:app_seminco/mina%201/models/Envio%20Api/medicion_horizontal.dart';
 import 'package:app_seminco/mina%201/screens/Actualizar%20Datos/Largo/detalle_largo_screen.dart';
 import 'package:app_seminco/mina%201/screens/Actualizar%20Datos/Explosivos/detalle_explosivos_screen.dart';
 import 'package:app_seminco/mina%201/screens/Actualizar%20Datos/Horizontal/detalle_horizontal_screen.dart';
@@ -8,6 +9,7 @@ import 'package:app_seminco/mina%201/screens/Actualizar%20Datos/Largo/detalle_la
 import 'package:app_seminco/mina%201/screens/Actualizar%20Datos/Mediciones/horizontal/detalle_mediciones_screen.dart';
 import 'package:app_seminco/mina%201/screens/Actualizar%20Datos/Mediciones/largo/detalle_mediciones_screen.dart';
 import 'package:app_seminco/mina%201/screens/Actualizar%20Datos/Sostenimiento/detalle_sostenimiento_screen.dart';
+import 'package:app_seminco/mina%201/services/Enviar%20nube/api_service_mediciones_horizontal.dart';
 import 'package:app_seminco/mina%201/services/Enviar%20nube/operacion_service.dart';
 import 'package:app_seminco/mina%201/services/Enviar%20nube/ExploracionService_service.dart';
 import 'package:app_seminco/mina%201/services/Enviar%20nube/operacion_service.dart';
@@ -28,8 +30,8 @@ class _SeccionesScreenState extends State<SeccionesScreen> {
         DetalleSostenimientoScreen(tipoOperacion: "SOSTENIMIENTO"),
     "EXPLOSIVOS": (context) => DetalleExplosivos(tipoOperacion: "EXPLOSIVOS"),
     "MEDICIONES TAL. HORIZONTAL": (context) => ListaMedicionesScreen(tipoPerforacion: "MEDICIONES TAL. HORIZONTAL"),
-    "MEDICIONES TAL. LARGO": (context) => ListaMedicionesLargoScreen(tipoPerforacion: "MEDICIONES TAL. LARGO"),
-  };
+    
+      };
 
   final List<String> _secciones = [
     "PERFORACIÓN TALADROS LARGOS",
@@ -39,7 +41,6 @@ class _SeccionesScreenState extends State<SeccionesScreen> {
     "MEDICIONES",
     "CARGUÍO",
     "MEDICIONES TAL. HORIZONTAL",
-    "MEDICIONES TAL. LARGO"
   ];
 
   Map<String, bool> _seccionesExpandida = {};
@@ -49,12 +50,12 @@ class _SeccionesScreenState extends State<SeccionesScreen> {
   Set<int> idsSostenimiento = {};
   Set<int> idsHorizontal = {};
   Set<int> idsExplosivos = {};
-  Set<int> idsMediciones = {};
+  Set<int> idsMedicionesHorizontal = {};
   List<Map<String, dynamic>> operacionDataLargo = [];
   List<Map<String, dynamic>> operacionDataHorizontal = [];
   List<Map<String, dynamic>> operacionDataSostenimiento = [];
   List<Map<String, dynamic>> operacionDataExplosi = [];
-  List<Map<String, dynamic>> operacionDataMediciones = [];
+  List<Map<String, dynamic>> operacionDataMedicionesHorizontal = [];
 
   bool isLoading = true;
   String mensajeUsuario = "Cargando registros...";
@@ -66,8 +67,8 @@ class _SeccionesScreenState extends State<SeccionesScreen> {
     _fetchOperacionDataLargo();
     _fetchOperacionDataHorizontal();
     _fetchExploracionesDataExplo();
-    // _fetchMedicionesDataExplo();
     _fetchOperacionDataSostenimiento();
+    
   }
 
   Future<void> _fetchOperacionDataLargo() async {
@@ -148,24 +149,6 @@ class _SeccionesScreenState extends State<SeccionesScreen> {
     }
   }
 
-  //  Future<void> _fetchMedicionesDataExplo() async {
-  //   DatabaseHelper_Mina1 dbHelper = DatabaseHelper_Mina1();
-  //   List<Map<String, dynamic>> data = await dbHelper.obtenerPerforacionesConDetalles();
-
-  //   print('Datos de Mediciones recibidos: $data');
-
-  //   if (data.isNotEmpty) {
-  //     setState(() {
-  //       operacionDataMediciones = data;
-  //       isLoading = false;
-  //     });
-  //   } else {
-  //     setState(() {
-  //       mensajeUsuario = "No se encontraron registros de Mediciones.";
-  //       isLoading = false;
-  //     });
-  //   }
-  // }
 
   void _mostrarDialogo(BuildContext context) async {
     DatabaseHelper_Mina1 dbHelper = DatabaseHelper_Mina1();
@@ -176,17 +159,16 @@ class _SeccionesScreenState extends State<SeccionesScreen> {
     idsSostenimiento.clear();
     idsHorizontal.clear();
     idsExplosivos.clear();
-    idsMediciones.clear();
+    idsMedicionesHorizontal.clear();
 
     for (var seccion in _pantallas.keys) {
       List<Map<String, dynamic>> datos;
 
       if (seccion == "EXPLOSIVOS") {
         datos = await dbHelper.getExploracionesPendientes();
+      }else if  (seccion == "MEDICIONES TAL. HORIZONTAL") {
+        datos = await dbHelper.getMedicionesHorizontalPendientes();
       }
-    //   else if (seccion == "MEDICIONES") {
-    //   datos = await dbHelper.getMedicionesPendientes(); // Necesitarás implementar este método
-    // }
     else {
         datos = await dbHelper.getOperacionPendienteByTipo(seccion);
         print("Datos recibidos para $seccion: $datos");
@@ -207,9 +189,9 @@ class _SeccionesScreenState extends State<SeccionesScreen> {
           idsHorizontal.add(id);
         } else if (seccion == "EXPLOSIVOS") {
           idsExplosivos.add(id);
-        } else if (seccion == "MEDICIONES") {
-        idsMediciones.add(id);
-      }
+        } else if (seccion == "MEDICIONES TAL. HORIZONTAL") {
+          idsMedicionesHorizontal.add(id);
+        } 
       }
     }
 
@@ -217,7 +199,7 @@ class _SeccionesScreenState extends State<SeccionesScreen> {
     print("Sostenimiento IDs: $idsSostenimiento");
     print("Horizontal IDs: $idsHorizontal");
     print("Explosivos IDs: $idsExplosivos");
- print("Mediciones IDs: $idsMediciones");
+    print("MEdicion horizontal IDs: $idsMedicionesHorizontal");
 
     showDialog(
       context: context,
@@ -276,7 +258,7 @@ class _SeccionesScreenState extends State<SeccionesScreen> {
                                       Text("Estado: ${operacion['estado']}",
                                           style: TextStyle(fontSize: 14)),
                                     ]
-                                    : seccion == "MEDICIONES"
+                                    : seccion == "MEDICIONES TAL. HORIZONTAL"
                                     ? [
                                         Text("Mes: ${operacion['mes']}",
                                             style: TextStyle(fontSize: 14)),
@@ -367,11 +349,11 @@ class _SeccionesScreenState extends State<SeccionesScreen> {
         mensajeResultado += '- Datos de Explosivos enviados\n';
       }
 
-    //   if (idsMediciones.isNotEmpty) {
-    //   await _exportSelectedItemsMediciones();
-    //   algunEnvioRealizado = true;
-    //   mensajeResultado += '- Datos de Mediciones enviados\n';
-    // }
+      if (idsMedicionesHorizontal.isNotEmpty) {
+        await _exportSelectedItemsMedicionHorizontal();
+        algunEnvioRealizado = true;
+        mensajeResultado += '- Datos de Mediciones horizontal enviados\n';
+      }
 
       // Cerrar el diálogo padre
       Navigator.of(dialogContext).pop();
@@ -1180,61 +1162,130 @@ Future<void> _exportSelectedItemsSostenimiento() async {
     );
   }
   //MEDICIONES--------------------------------------------------------------------------------------------------------------------------------
-//   Future<void> _exportSelectedItemsMediciones() async {
-//     if (idsMediciones.isEmpty) return;
 
-//     DatabaseHelper_Mina1 dbHelper = DatabaseHelper_Mina1();
-//     List<Map<String, dynamic>> jsonData = [];
+Future<void> _exportSelectedItemsMedicionHorizontal() async {
+  if (idsMedicionesHorizontal.isEmpty) return;
 
-//     for (var id in idsMediciones) {
-//       List<Map<String, dynamic>> estructuraCompleta = await dbHelper
-//           .obtenerPerforacionMedicionesEstructura(id);
+  final dbHelper = DatabaseHelper_Mina1();
+  final List<Map<String, dynamic>> jsonCrear = [];
+  final List<Map<String, dynamic>> jsonActualizar = [];
 
-//       // Como `obtenerEstructuraCompleta` devuelve una lista, pero solo hay un dato por ID, tomamos el primer elemento.
-//       if (estructuraCompleta.isNotEmpty) {
-//         jsonData.add(estructuraCompleta.first);
-//       }
-//     }
+  for (final id in idsMedicionesHorizontal) {
+    final medicion = await dbHelper.obtenerMedicionHorizontalPorId(id);
+    if (medicion == null) continue;
 
-//     // Mostrar diálogo de confirmación antes de enviar
-//     await _enviarDatosALaNubeMedicion(jsonData);
-//   }
+    // si trae idNube_medicion (no null y >0) lo mandamos a actualizar
+    if (medicion['idNube_medicion'] != null && medicion['idNube_medicion'] != 0) {
+      // copiar y transformar el campo
+      final updateMap = Map<String, dynamic>.from(medicion);
+      updateMap['id'] = updateMap['idNube_medicion']; // la API espera "id"
+      updateMap.remove('idNube_medicion');
+      jsonActualizar.add(updateMap);
+    } else {
+      jsonCrear.add(medicion);
+    }
+  }
+  
 
-//   Future<void> _enviarDatosALaNubeMedicion(List<Map<String, dynamic>> jsonData) async {
-//   final medicionService = PerforacionMedicionService();
-//   bool allSuccess = true;
-//   showDialog(
-//     context: context,
-//     barrierDismissible: false,
-//     builder: (context) => const Center(child: CircularProgressIndicator()),
-//   );
+   // Saltamos el diálogo y vamos directo a los envíos
+  if (jsonCrear.isNotEmpty) {
+    await _enviarDatosALaNubeMEdicionHorizontal(jsonCrear);
+  }
+  if (jsonActualizar.isNotEmpty) {
+    await _actualizarDatosEnLaNubeMEdicionHorizontal(jsonActualizar);
+  }
+}
 
-//   try {
-//     for (var operacion in jsonData) {
-//       final prettyJson = const JsonEncoder.withIndent('  ').convert(operacion);
+Future<void> _actualizarDatosEnLaNubeMEdicionHorizontal(List<Map<String, dynamic>> jsonData) async {
+  final medicionService = ApiServiceMedicionesHorizontal();
+  bool allSuccess = true;
+  List<String> errores = [];
 
-//       bool success = await medicionService.crearPerforacion(operacion);
+    showDialog(
+    context: context,
+    barrierDismissible: false,
+    builder: (context) => const Center(child: CircularProgressIndicator()),
+  );
 
-//       if (success) {
-//         await _actualizarEnvioMedicion(operacion['id']);
-//       } else {
-//         allSuccess = false;
-//       }
-//     }
-//   } catch (e) {
-//     allSuccess = false;
-//   }
+  try {
+    // aquí puedes llamar a put de golpe si tu API soporta array
+    final success = await medicionService.putMedicionHorizontal(jsonData);
+    if (success) {
+      for (final item in jsonData) {
+        await _actualizarEnvio(item['id_local'] ?? item['id']); 
+        // si necesitas marcar localmente, usa el id local (el autoincrement)
+      }
+    } else {
+      allSuccess = false;
+      errores.add('Error al actualizar registros');
+    }
+  } catch (e) {
+    allSuccess = false;
+    errores.add('Error inesperado: ${e.toString()}');
+  }
 
-//   Navigator.of(context).pop();
-// }
+}
 
-//  Future<int> _actualizarEnvioMedicion(int operacionId) async {
-//     DatabaseHelper_Mina1 dbHelper = DatabaseHelper_Mina1();
 
-//     // Llamada a la función que actualizará el estado de 'envio' en la base de datos
-//     return await dbHelper.actualizarEnvioDatos_mediociones(
-//       operacionId,
-//     );
-//   }
+Future<void> _enviarDatosALaNubeMEdicionHorizontal(List<Map<String, dynamic>> jsonData) async {
+  final medicionService = ApiServiceMedicionesHorizontal();
+  final exploracionService = ExploracionService();
+  bool allSuccess = true;
+  List<String> errores = [];
+  List<int> idsNubeParaMarcar = [];
+
+      showDialog(
+    context: context,
+    barrierDismissible: false,
+    builder: (context) => const Center(child: CircularProgressIndicator()),
+  );
+
+  try {
+    // Paso 1: Enviar todas las mediciones horizontales
+    for (var medicionMap in jsonData) {
+      try {
+        final medicion = MedicionHorizontal.fromJson(medicionMap);
+        bool success = await medicionService.postMedicionHorizontal(medicion.toApiJson());
+
+        if (success) {
+          await _actualizarEnviomedicionHorizontal(medicionMap['id']);
+          
+          // Si tiene idnube, lo agregamos a la lista para marcar
+          if (medicionMap['idnube'] != null) {
+            idsNubeParaMarcar.add(medicionMap['idnube']);
+          }
+        } else {
+          allSuccess = false;
+          errores.add("Error al enviar medición ID: ${medicionMap['id']}");
+        }
+      } catch (e) {
+        allSuccess = false;
+        errores.add("Error procesando medición ID: ${medicionMap['id']} - ${e.toString()}");
+      }
+    }
+
+    // Paso 2: Marcar los registros como usados en mediciones (solo si hay ids)
+    if (idsNubeParaMarcar.isNotEmpty) {
+      bool marcadoExitoso = await exploracionService.marcarComoUsadosEnMediciones(idsNubeParaMarcar);
+      
+      if (!marcadoExitoso) {
+        allSuccess = false;
+        errores.add("Error al marcar registros como usados en mediciones");
+      }
+    }
+
+  } catch (e) {
+    allSuccess = false;
+    errores.add("Error inesperado: ${e.toString()}");
+  }
+
+}
+
+
+
+  Future<int> _actualizarEnviomedicionHorizontal(int medicionId) async {
+    DatabaseHelper_Mina1 dbHelper = DatabaseHelper_Mina1();
+    return await dbHelper.actualizarEnvioMedicionesHorizontal([medicionId]);
+  }
 
 }

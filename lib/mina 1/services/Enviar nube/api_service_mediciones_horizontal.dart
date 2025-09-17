@@ -30,4 +30,29 @@ class ApiServiceMedicionesHorizontal {
       return false;
     }
   }
+
+  Future<bool> putMedicionHorizontal(dynamic medicionData) async {
+  try {
+    final response = await http.put(
+      Uri.parse('${ApiConfig.baseUrl}${ApiConfig.medicionesHorizontalEndpoint}/update'),
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode(medicionData),
+    );
+
+    if (response.statusCode == 200) {
+      print('✅ Medición(es) Horizontal actualizada(s) con éxito.');
+      print('Respuesta: ${response.body}');
+      return true;
+    } else {
+      print('❌ Error al actualizar medición horizontal. Código: ${response.statusCode}');
+      print('Respuesta: ${response.body}');
+      return false;
+    }
+  } catch (error) {
+    print('❌ Error en putMedicionHorizontal: $error');
+    return false;
+  }
+}
 }

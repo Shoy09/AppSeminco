@@ -35,11 +35,14 @@ Future<void> handleLogin() async {
     try {
       final tokenMina1 = await ApiService_Mina1().login(dni, pass);
       final userDataMina1 = await UserService_mina1().getUserProfile(tokenMina1);
-
+print("userDataMina1: $userDataMina1");
       // Configurar base de datos MINA 1 primero
       await DatabaseHelper_Mina1().setCurrentUserDni(dni);
       await DatabaseHelper_Mina1().saveUser(userDataMina1, pass);
 
+final savedUser = await DatabaseHelper_Mina1().getUserByDni(dniController.text);
+    print("Usuario guardado en DB: $savedUser");
+    
 //       final connectivityService = ConnectivityService();
 // final backgroundSyncService = BackgroundSyncService(
 //   connectivityService: connectivityService,

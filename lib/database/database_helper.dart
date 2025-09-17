@@ -24,7 +24,7 @@ class DatabaseHelper_Mina1 {
   static Database? _database;
   static String? _currentUserDni;
   static bool _isInitialized = false;
-  static const int _currentDbVersion = 4;
+  static const int _currentDbVersion = 8;
 
   DatabaseHelper_Mina1._internal() {
     // Inicialización única para evitar múltiples llamadas
@@ -304,7 +304,7 @@ class DatabaseHelper_Mina1 {
     await db.execute('''
   CREATE TABLE Usuario (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    codigo_dni TEXT NOT NULL,
+    codigo_dni TEXT NOT NULL UNIQUE,
     apellidos TEXT NOT NULL,
     nombres TEXT NOT NULL,
     cargo TEXT,
@@ -313,7 +313,7 @@ class DatabaseHelper_Mina1 {
     autorizado_equipo TEXT,
     area TEXT,
     clasificacion TEXT,
-    correo TEXT UNIQUE,
+    correo TEXT,
     password TEXT NOT NULL,
     firma TEXT,
     rol TEXT,
@@ -692,7 +692,11 @@ await db.execute('''
     alto REAL,
     envio INTEGER DEFAULT 0,
     id_explosivo INTEGER,
-    idnube INTEGER
+    idnube INTEGER,
+    idNube_medicion INTEGER,
+    no_aplica INTEGER DEFAULT 0,
+    remanente INTEGER DEFAULT 0,
+    semana TEXT
   )
 ''');
 
@@ -781,6 +785,70 @@ Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
       }
     }
   }
+  if (oldVersion < 5) {
+  if (await _tablaExiste(db, 'mediciones_horizontal')) {
+    if (!await _columnaExiste(db, 'mediciones_horizontal', 'no_aplica')) {
+      await db.execute("ALTER TABLE mediciones_horizontal ADD COLUMN no_aplica INTEGER DEFAULT 0");
+    }
+    if (!await _columnaExiste(db, 'mediciones_horizontal', 'remanente')) {
+      await db.execute("ALTER TABLE mediciones_horizontal ADD COLUMN remanente INTEGER DEFAULT 0");
+    }
+  }
+}if (oldVersion < 7) { 
+  if (await _tablaExiste(db, 'mediciones_horizontal')) {
+    if (!await _columnaExiste(db, 'mediciones_horizontal', 'semana')) {
+      await db.execute("ALTER TABLE mediciones_horizontal ADD COLUMN semana TEXT");
+    }
+  }
+}
+if (oldVersion < 8) {
+  if (await _tablaExiste(db, 'Usuario')) {
+
+    // 1. Crear tabla temporal con codigo_dni UNIQUE y correo sin UNIQUE
+    await db.execute('''
+      CREATE TABLE Usuario_temp (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        codigo_dni TEXT NOT NULL UNIQUE,
+        apellidos TEXT NOT NULL,
+        nombres TEXT NOT NULL,
+        cargo TEXT,
+        empresa TEXT,
+        guardia TEXT,
+        autorizado_equipo TEXT,
+        area TEXT,
+        clasificacion TEXT,
+        correo TEXT,
+        password TEXT NOT NULL,
+        firma TEXT,
+        rol TEXT,
+        operaciones_autorizadas TEXT,
+        createdAt TEXT NOT NULL,
+        updatedAt TEXT NOT NULL
+      )
+    ''');
+
+    // 2. Copiar datos de la tabla vieja a la temporal
+    await db.execute('''
+      INSERT OR IGNORE INTO Usuario_temp (
+        id, codigo_dni, apellidos, nombres, cargo, empresa, guardia, autorizado_equipo,
+        area, clasificacion, correo, password, firma, rol, operaciones_autorizadas,
+        createdAt, updatedAt
+      )
+      SELECT 
+        id, codigo_dni, apellidos, nombres, cargo, empresa, guardia, autorizado_equipo,
+        area, clasificacion, correo, password, firma, rol, operaciones_autorizadas,
+        createdAt, updatedAt
+      FROM Usuario
+    ''');
+
+    // 3. Borrar la tabla vieja
+    await db.execute('DROP TABLE Usuario');
+
+    // 4. Renombrar la tabla temporal
+    await db.execute('ALTER TABLE Usuario_temp RENAME TO Usuario');
+  }
+}
+
 }
 
 Future<bool> _tablaExiste(Database db, String tabla) async {
@@ -1333,6 +1401,15 @@ Future<bool> _tablaExiste(Database db, String tabla) async {
     );
   }
 
+  Future<List<Map<String, dynamic>>> getMedicionesHorizontalPendientes() async {
+    final db = await database;
+    return await db.query(
+      'mediciones_horizontal',
+      where: 'envio = 0',
+      orderBy: 'id DESC',
+    );
+  }
+
   // Insertar un nuevo registro (solamente fecha y turno)
   Future<int> insertExploracion(
       String fecha,
@@ -1866,11 +1943,12 @@ Future<List<TipoPerforacion>> getTiposPerforacionhorizontalfil() async {
   final db = await database;
   final List<Map<String, dynamic>> maps = await db.query(
     'TipoPerforacion',
-    where: 'proceso = ? AND permitido_medicion = ?',  // Cambio aquí
-    whereArgs: ['PERFORACIÓN HORIZONTAL', 1],        // Cambio aquí
+    where: 'proceso = ?',              // 🔹 Solo filtramos por proceso
+    whereArgs: ['PERFORACIÓN HORIZONTAL'],
   );
   return List.generate(maps.length, (i) => TipoPerforacion.fromJson(maps[i]));
 }
+
 
 
   Future<List<TipoPerforacion>> getTiposPerforacionLargo() async {
@@ -2454,6 +2532,29 @@ Future<List<Map<String, dynamic>>> obtenerTodasMedicionesHorizontal() async {
   );
   return result;
 }
+
+Future<List<Map<String, dynamic>>> obtenerMedicionesHorizontalConRemanente() async {
+  final db = await database;
+  final result = await db.query(
+    'mediciones_horizontal',
+    where: 'remanente = ?',
+    whereArgs: [1],
+    orderBy: 'fecha DESC', // opcional, las más recientes primero
+  );
+  return result;
+}
+
+Future<int> actualizarMedicionHorizontal(int id, Map<String, dynamic> datos) async {
+  final db = await database;
+  return await db.update(
+    'mediciones_horizontal',
+    datos,
+    where: 'id = ?',
+    whereArgs: [id],
+  );
+}
+
+
 
 Future<Map<String, dynamic>?> obtenerMedicionHorizontalPorId(int id) async {
   final Database db = await database;

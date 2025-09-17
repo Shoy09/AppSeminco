@@ -1,5 +1,4 @@
 import 'dart:convert';
-
 import 'package:app_seminco/database/database_helper_mina_2.dart';
 import 'package:app_seminco/mina%202/screens/Actualizar%20Datos/Largo/detalle_largo_screen.dart';
 import 'package:app_seminco/mina%202/screens/Actualizar%20Datos/Explosivos/detalle_explosivos_screen.dart';
@@ -12,6 +11,8 @@ import 'package:app_seminco/mina%202/services/Enviar%20nube/operacion_service.da
 import 'package:app_seminco/mina%202/services/Enviar%20nube/ExploracionService_service.dart';
 import 'package:app_seminco/mina%202/services/Enviar%20nube/operacion_service.dart';
 import 'package:flutter/material.dart';
+
+import 'Carguio/detalle_carguio_screen.dart';
 
 class SeccionesScreen extends StatefulWidget {
   @override
@@ -29,6 +30,7 @@ class _SeccionesScreenState extends State<SeccionesScreen> {
     "EXPLOSIVOS": (context) => DetalleExplosivos(tipoOperacion: "EXPLOSIVOS"),
     "MEDICIONES TAL. HORIZONTAL": (context) => ListaMedicionesScreen(tipoPerforacion: "MEDICIONES TAL. HORIZONTAL"),
     "MEDICIONES TAL. LARGO": (context) => ListaMedicionesLargoScreen(tipoPerforacion: "MEDICIONES TAL. LARGO"),
+    "CARGUÍO": (context) => DetalleCarguiSeccionScreen(tipoOperacion: "CARGUÍO"),
   };
 
   final List<String> _secciones = [
@@ -50,11 +52,13 @@ class _SeccionesScreenState extends State<SeccionesScreen> {
   Set<int> idsHorizontal = {};
   Set<int> idsExplosivos = {};
   Set<int> idsMediciones = {};
+  Set<int> idsCarguio = {};
   List<Map<String, dynamic>> operacionDataLargo = [];
   List<Map<String, dynamic>> operacionDataHorizontal = [];
   List<Map<String, dynamic>> operacionDataSostenimiento = [];
   List<Map<String, dynamic>> operacionDataExplosi = [];
   List<Map<String, dynamic>> operacionDataMediciones = [];
+  List<Map<String, dynamic>> operacionDataCarguio = [];
 
   bool isLoading = true;
   String mensajeUsuario = "Cargando registros...";
@@ -68,6 +72,7 @@ class _SeccionesScreenState extends State<SeccionesScreen> {
     _fetchExploracionesDataExplo();
     // _fetchMedicionesDataExplo();
     _fetchOperacionDataSostenimiento();
+_fetchOperacionDataCarguio();
   }
 
   Future<void> _fetchOperacionDataLargo() async {
@@ -129,6 +134,26 @@ class _SeccionesScreenState extends State<SeccionesScreen> {
     }
   }
 
+  Future<void> _fetchOperacionDataCarguio() async {
+    DatabaseHelper_Mina2 dbHelper = DatabaseHelper_Mina2();
+    List<Map<String, dynamic>> data =
+        await dbHelper.getOperacionBytipoOperacion("CARGUÍO");
+
+    print('Datos recibidos de la base de datos: $data');
+
+    if (data.isNotEmpty) {
+      setState(() {
+        operacionDataCarguio = data;
+        isLoading = false;
+      });
+    } else {
+      setState(() {
+        mensajeUsuario = "No se encontraron registros.";
+        isLoading = false;
+      });
+    }
+  }
+
   Future<void> _fetchExploracionesDataExplo() async {
     DatabaseHelper_Mina2 dbHelper = DatabaseHelper_Mina2();
     List<Map<String, dynamic>> data = await dbHelper.getExploraciones();
@@ -175,6 +200,7 @@ class _SeccionesScreenState extends State<SeccionesScreen> {
     idsTaladroLargo.clear();
     idsSostenimiento.clear();
     idsHorizontal.clear();
+    idsCarguio.clear();
     idsExplosivos.clear();
     idsMediciones.clear();
 
@@ -205,6 +231,8 @@ class _SeccionesScreenState extends State<SeccionesScreen> {
           idsSostenimiento.add(id);
         } else if (seccion == "PERFORACIÓN HORIZONTAL") {
           idsHorizontal.add(id);
+        }else if (seccion == "CARGUÍO") {
+          idsCarguio.add(id);
         } else if (seccion == "EXPLOSIVOS") {
           idsExplosivos.add(id);
         } else if (seccion == "MEDICIONES") {
@@ -216,6 +244,7 @@ class _SeccionesScreenState extends State<SeccionesScreen> {
     print("Taladro Largo IDs: $idsTaladroLargo");
     print("Sostenimiento IDs: $idsSostenimiento");
     print("Horizontal IDs: $idsHorizontal");
+    print("Carguio IDs: $idsCarguio");
     print("Explosivos IDs: $idsExplosivos");
  print("Mediciones IDs: $idsMediciones");
 
@@ -359,6 +388,12 @@ class _SeccionesScreenState extends State<SeccionesScreen> {
         await _exportSelectedItemsSostenimiento();
         algunEnvioRealizado = true;
         mensajeResultado += '- Datos de Sostenimiento enviados\n';
+      }
+
+      if (idsCarguio.isNotEmpty) {
+        await _exportSelectedItemsCarguio();
+        algunEnvioRealizado = true;
+        mensajeResultado += '- Datos de Carguio enviados\n';
       }
 
       if (idsExplosivos.isNotEmpty) {
@@ -1148,6 +1183,194 @@ Future<void> _exportSelectedItemsSostenimiento() async {
     }
   }
 }
+
+
+//CARGUIO------------------------------------------------------------------------------------------------------------------------------------
+Future<void> _exportSelectedItemsCarguio() async {
+  if (idsCarguio.isEmpty) return;
+
+  final dbHelper = DatabaseHelper_Mina2();
+  final List<Map<String, dynamic>> jsonDataParaCrear = [];
+  final List<Map<String, dynamic>> jsonDataParaActualizar = [];
+
+  for (final id in idsCarguio) {
+    // 1. Obtener datos básicos de la operación
+    final operacion = operacionDataCarguio.firstWhere((op) => op['id'] == id);
+
+    // 2. Obtener todos los elementos relacionados
+    final estados = await dbHelper.getEstadosByOperacionId(id);
+    final horometros = await dbHelper.getHorometrosByOperacion(id);
+    final checklists = await dbHelper.getChecklistsByOperacion(id);
+
+    // 3. Preparar datos limpios de la operación (sin ID local)
+    final operacionLimpia = {
+      "turno": operacion['turno'],
+      "equipo": operacion['equipo'],
+      "codigo": operacion['codigo'],
+      "empresa": operacion['empresa'],
+      "fecha": operacion['fecha'],
+      "tipo_operacion": operacion['tipo_operacion'],
+      "estado": operacion['estado'] ?? 'activo',
+      "envio": operacion['envio'] ?? 0
+    };
+
+    // 4. Procesar estados con sus carguios
+    final estadosLimpios = <Map<String, dynamic>>[];
+
+    for (final estado in estados) {
+      // Obtener carguios para este estado
+      final carguios = await dbHelper.getCarguios(estado['id']);
+
+      final carguiosLimpios = carguios.map((c) {
+        return {
+          "tipo_labor": c['tipo_labor'],
+          "labor": c['labor'],
+          "tipo_labor_manual": c['tipo_labor_manual'] ?? "",
+          "labor_manual": c['labor_manual'] ?? "",
+          "ncucharas": c['ncucharas'] ?? 0,
+          "observacion": c['observacion'] ?? ""
+        };
+      }).toList();
+
+      // Agregar estado con sus carguios
+      estadosLimpios.add({
+        "numero": estado['numero'],
+        "estado": estado['estado'],
+        "codigo": estado['codigo'],
+        "hora_inicio": estado['hora_inicio'],
+        "hora_final": estado['hora_final'],
+        "carguios": carguiosLimpios // anidado bajo el estado
+      });
+    }
+
+    // 5. Procesar horómetros
+    final horometrosLimpios = horometros.map((h) {
+      return {
+        "nombre": h['nombre'],
+        "inicial": h['inicial'],
+        "final": h['final'],
+        "EstaOP": h['EstaOP'] ?? 0,
+        "EstaINOP": h['EstaINOP'] ?? 0
+      };
+    }).toList();
+
+    // 6. Procesar checklists
+    final checklistsLimpios = checklists.map((c) {
+      return {
+        "descripcion": c['descripcion'],
+        "decision": c['decision'],
+        "observacion": c['observacion'],
+        "categoria": c['categoria']
+      };
+    }).toList();
+
+    // 7. Construir el objeto final de la operación
+    final operacionCompleta = {
+      "local_id": id,
+      "idNube": operacion['idNube'] ?? 0,
+      "operacion": operacionLimpia,
+      "estados": estadosLimpios, // con carguios anidados
+      "horometros": horometrosLimpios,
+      "checklists": checklistsLimpios,
+    };
+
+    // 8. Clasificar para crear o actualizar
+    if (operacion['idNube'] == null) {
+      jsonDataParaCrear.add(operacionCompleta);
+    } else {
+      operacionCompleta['operacion']['id'] = operacion['idNube'];
+      jsonDataParaActualizar.add(operacionCompleta);
+    }
+  }
+
+  // 9. Enviar a la nube
+  await _enviarDatosALaNubeCarguio(jsonDataParaCrear, jsonDataParaActualizar);
+}
+
+  Future<void> _enviarDatosALaNubeCarguio(
+
+      List<Map<String, dynamic>> jsonDataParaCrear,
+  List<Map<String, dynamic>> jsonDataParaActualizar,
+) async {
+  final operacionService = OperacionService();
+  bool allSuccess = true;
+
+  showDialog(
+    context: context,
+    barrierDismissible: false,
+    builder: (context) => const Center(child: CircularProgressIndicator()),
+  );
+
+  try {
+    // Procesar operaciones para crear
+    for (var operacion in jsonDataParaCrear) {
+      int localId = operacion['local_id'];
+      print('Creando en la nube operacion con ID local: $localId');
+
+      final operacionSinLocalId = Map<String, dynamic>.from(operacion);
+      operacionSinLocalId.remove('local_id');
+
+      final idsNube = await operacionService.crearOperacionCarguio(operacionSinLocalId);
+
+      if (idsNube != null && idsNube.isNotEmpty) {
+        final idNube = idsNube.length == 1 ? idsNube.first : idsNube[0];
+        await _actualizarIdNubeOperacion(localId, idNube);
+        
+        // Determinar qué función de actualización usar según el estado
+        if (operacion['operacion']['estado'] == 'cerrado') {
+          await _actualizarEnvio(localId);
+        } else {
+          await _actualizarEnvioParciales(localId);
+        }
+      } else {
+        allSuccess = false;
+        print('Error al crear operación con ID local: $localId');
+      }
+    }
+
+    // Procesar operaciones para actualizar
+    for (var operacion in jsonDataParaActualizar) {
+      int localId = operacion['local_id'];
+      print('Actualizando en la nube operacion con ID local: $localId');
+
+      final operacionSinLocalId = Map<String, dynamic>.from(operacion);
+      operacionSinLocalId.remove('local_id');
+
+      final success = await operacionService.actualizarOperacionCarguio(operacionSinLocalId);
+
+      if (!success) {
+        allSuccess = false;
+        print('Error al actualizar operación con ID local: $localId');
+      } else {
+        // Determinar qué función de actualización usar según el estado
+        if (operacion['operacion']['estado'] == 'cerrado') {
+          await _actualizarEnvio(localId);
+        } else {
+          await _actualizarEnvioParciales(localId);
+        }
+      }
+    }
+  } catch (e) {
+    allSuccess = false;
+    print('Error durante el envío: $e');
+  }
+
+  if (mounted) {
+    Navigator.of(context).pop();
+    
+    // Mostrar resultado al usuario
+    if (allSuccess) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Datos enviados exitosamente')),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Hubo errores al enviar algunos datos')),
+      );
+    }
+  }
+}
+
 //EXPLOSIVOS--------------------------------------------------------------------------------------------------------------------------------
 
   Future<void> _exportSelectedItemsExplo() async {

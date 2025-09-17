@@ -90,65 +90,99 @@ class _DetalleSeccionScreenState extends State<ListaMedicionesScreen> {
     }
   }
 
-  Future<void> _exportSelectedItems() async {
-    if (selectedItems.isEmpty) return;
+Future<void> _exportSelectedItems() async {
+  if (selectedItems.isEmpty) return;
 
-    DatabaseHelper_Mina1 dbHelper = DatabaseHelper_Mina1();
-    List<Map<String, dynamic>> jsonData = [];
+  final dbHelper = DatabaseHelper_Mina1();
+  final List<Map<String, dynamic>> jsonCrear = [];
+  final List<Map<String, dynamic>> jsonActualizar = [];
 
-    for (var id in selectedItems) {
-      Map<String, dynamic>? medicion = await dbHelper.obtenerMedicionHorizontalPorId(id);
+  for (final id in selectedItems) {
+    final medicion = await dbHelper.obtenerMedicionHorizontalPorId(id);
+    if (medicion == null) continue;
 
-      if (medicion != null) {
-        jsonData.add(medicion);
+    // si trae idNube_medicion (no null y >0) lo mandamos a actualizar
+    if (medicion['idNube_medicion'] != null && medicion['idNube_medicion'] != 0) {
+      // copiar y transformar el campo
+      final updateMap = Map<String, dynamic>.from(medicion);
+      updateMap['id'] = updateMap['idNube_medicion']; // la API espera "id"
+      updateMap.remove('idNube_medicion');
+      jsonActualizar.add(updateMap);
+    } else {
+      jsonCrear.add(medicion);
+    }
+  }
+  
+
+  await _showConfirmationDialog(jsonCrear, jsonActualizar);
+}
+
+Future<void> _showConfirmationDialog(
+  List<Map<String, dynamic>> jsonCrear,
+  List<Map<String, dynamic>> jsonActualizar,
+) async {
+  final total = jsonCrear.length + jsonActualizar.length;
+
+  final confirmado = await showDialog<bool>(
+    context: context,
+    barrierDismissible: false,
+    builder: (_) => AlertDialog(
+      title: const Text('Confirmar envío'),
+      content: Text('Se enviarán $total registros '
+          '(${
+            jsonCrear.length
+          } nuevos, ${jsonActualizar.length} para actualizar)'),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(false),
+          child: const Text('Cancelar'),
+        ),
+        ElevatedButton(
+          onPressed: () => Navigator.of(context).pop(true),
+          child: const Text('Enviar'),
+        ),
+      ],
+    ),
+  );
+
+  if (confirmado == true) {
+    if (jsonCrear.isNotEmpty) await _enviarDatosALaNube(jsonCrear);
+    if (jsonActualizar.isNotEmpty) await _actualizarDatosEnLaNube(jsonActualizar);
+  }
+}
+
+Future<void> _actualizarDatosEnLaNube(List<Map<String, dynamic>> jsonData) async {
+  final medicionService = ApiServiceMedicionesHorizontal();
+  bool allSuccess = true;
+  List<String> errores = [];
+
+  showDialog(
+    context: context,
+    barrierDismissible: false,
+    builder: (_) => const Center(child: CircularProgressIndicator()),
+  );
+
+  try {
+    // aquí puedes llamar a put de golpe si tu API soporta array
+    final success = await medicionService.putMedicionHorizontal(jsonData);
+    if (success) {
+      for (final item in jsonData) {
+        await _actualizarEnvio(item['id_local'] ?? item['id']); 
+        // si necesitas marcar localmente, usa el id local (el autoincrement)
       }
+    } else {
+      allSuccess = false;
+      errores.add('Error al actualizar registros');
     }
-
-    await _showConfirmationDialog(jsonData);
+  } catch (e) {
+    allSuccess = false;
+    errores.add('Error inesperado: ${e.toString()}');
   }
 
-  Future<void> _showConfirmationDialog(List<Map<String, dynamic>> jsonData) async {
-    String prettyJson = const JsonEncoder.withIndent('  ').convert(jsonData);
+  Navigator.of(context).pop();
+  await _showResultDialog(allSuccess, errores);
+}
 
-    bool? confirmado = await showDialog<bool>(
-      context: context,
-      barrierDismissible: false,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Confirmar envío'),
-          content: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('¿Estás seguro que deseas enviar los siguientes datos a la nube?'),
-                const SizedBox(height: 16),
-                Text(
-                  'Mediciones a enviar: ${jsonData.length}',
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 16),
-                
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('Cancelar'),
-            ),
-            ElevatedButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              child: const Text('Enviar'),
-            ),
-          ],
-        );
-      },
-    );
-
-    if (confirmado == true) {
-      await _enviarDatosALaNube(jsonData);
-    }
-  }
 
 Future<void> _enviarDatosALaNube(List<Map<String, dynamic>> jsonData) async {
   final medicionService = ApiServiceMedicionesHorizontal();
@@ -204,6 +238,58 @@ Future<void> _enviarDatosALaNube(List<Map<String, dynamic>> jsonData) async {
 
   Navigator.of(context).pop();
   await _showResultDialog(allSuccess, errores);
+}
+
+
+
+  Future<int> _actualizarEnvio(int medicionId) async {
+    DatabaseHelper_Mina1 dbHelper = DatabaseHelper_Mina1();
+    return await dbHelper.actualizarEnvioMedicionesHorizontal([medicionId]);
+  }
+
+Future<void> _showResultDialog(bool success, List<String> errores) async {
+  await showDialog(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: Text(success ? 'Éxito' : 'Error'),
+      content: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              success
+                  ? 'Los datos se enviaron correctamente a la nube y se marcaron los registros correspondientes.'
+                  : 'Ocurrieron algunos errores durante el proceso:',
+            ),
+            if (errores.isNotEmpty) ...[
+              const SizedBox(height: 16),
+              const Text(
+                'Detalles:',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              ...errores.map((e) => Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: Text('- $e', style: const TextStyle(fontSize: 14)),
+              )).toList(),
+            ],
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () async {
+            Navigator.of(context).pop();
+            if (success) {
+              await _fetchMedicionesData();
+              setState(() => selectedItems.clear());
+            }
+          },
+          child: const Text('Aceptar'),
+        ),
+      ],
+    ),
+  );
 }
 
   void _confirmarEliminacion() {
@@ -273,55 +359,160 @@ Future<void> _enviarDatosALaNube(List<Map<String, dynamic>> jsonData) async {
 
 
 
-  Future<int> _actualizarEnvio(int medicionId) async {
-    DatabaseHelper_Mina1 dbHelper = DatabaseHelper_Mina1();
-    return await dbHelper.actualizarEnvioMedicionesHorizontal([medicionId]);
-  }
+  Widget _buildMedicionCard(int index) {
+    final medicion = medicionesData[index];
+    final isSelected = selectedItems.contains(medicion['id']);
+    final yaEnviado = medicion['envio'] == 1;
+    final noAplica = medicion['no_aplica'] == 1 ? "Sí" : "No";
+    final remanente = medicion['remanente'] == 1 ? "Sí" : "No";
 
-Future<void> _showResultDialog(bool success, List<String> errores) async {
-  await showDialog(
-    context: context,
-    builder: (context) => AlertDialog(
-      title: Text(success ? 'Éxito' : 'Error'),
-      content: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              success
-                  ? 'Los datos se enviaron correctamente a la nube y se marcaron los registros correspondientes.'
-                  : 'Ocurrieron algunos errores durante el proceso:',
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      child: Card(
+        elevation: 2,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: isSelected
+              ? const BorderSide(color: Colors.blue, width: 1.5)
+              : BorderSide(color: Colors.grey.withOpacity(0.2)),
+        ),
+        color: yaEnviado
+            ? Colors.grey[100]
+            : isSelected
+                ? Colors.blue.withOpacity(0.05)
+                : Colors.white,
+        child: InkWell(
+          onTap: yaEnviado ? null : () => _handleItemTap(index),
+          borderRadius: BorderRadius.circular(12),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Header con ID y estado
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      "ID: ${medicion['id']}",
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                        color: Colors.grey[800],
+                      ),
+                    ),
+                    Row(
+                      children: [
+                        if (yaEnviado)
+                          Icon(Icons.cloud_done,
+                              color: Colors.green[700], size: 20),
+                        if (isSelected)
+                          Icon(Icons.check_circle, color: Colors.blue, size: 20),
+                      ],
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                
+                // Información principal en dos columnas
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildInfoRow(
+                            Icons.calendar_today,
+                            "Fecha:",
+                            medicion['fecha'],
+                          ),
+                           const SizedBox(height: 8),
+                        _buildInfoRow(
+                          Icons.event_note,
+                          "Semana:",
+                          medicion['semana'] ?? "-", // <-- Nuevo campo agregado
+                        ),
+                          const SizedBox(height: 8),
+                          _buildInfoRow(
+                            Icons.work,
+                            "Turno:",
+                            medicion['turno'],
+                          ),
+                          const SizedBox(height: 8),
+                          _buildInfoRow(
+                            Icons.place,
+                            "Zona:",
+                            medicion['zona'],
+                          ),
+                          const SizedBox(height: 8),
+                          _buildInfoRow(
+                            Icons.engineering,
+                            "Labor:",
+                            medicion['labor'],
+                          ),
+                        ],
+                      ),
+                    ),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildInfoRow(
+                            Icons.terrain,
+                            "Veta:",
+                            medicion['veta'],
+                          ),
+                          const SizedBox(height: 8),
+                          _buildInfoRow(
+                            Icons.trending_up,
+                            "Avance programado:",
+                            "${medicion['avance_programado']}m",
+                          ),
+                          const SizedBox(height: 8),
+                          _buildInfoRow(
+                            Icons.aspect_ratio,
+                            "Dimensiones:",
+                            "${medicion['ancho']}m x ${medicion['alto']}m",
+                          ),
+                          const SizedBox(height: 8),
+                          _buildInfoRow(
+                            Icons.local_fire_department,
+                            "Explosivos:",
+                            "${medicion['kg_explosivos']}kg",
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                
+                // Flags de No aplica y Remanente
+                Row(
+                  children: [
+                    _buildFlagChip(
+                      "No aplica: $noAplica",
+                      noAplica == "Sí" 
+                        ? Colors.orange[800]! 
+                        : Colors.grey[600]!,
+                    ),
+                    const SizedBox(width: 8),
+                    _buildFlagChip(
+                      "Remanente: $remanente",
+                      remanente == "Sí" 
+                        ? Colors.purple[700]! 
+                        : Colors.grey[600]!,
+                    ),
+                  ],
+                ),
+              ],
             ),
-            if (errores.isNotEmpty) ...[
-              const SizedBox(height: 16),
-              const Text(
-                'Detalles:',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              ...errores.map((e) => Padding(
-                padding: const EdgeInsets.symmetric(vertical: 4),
-                child: Text('- $e', style: const TextStyle(fontSize: 14)),
-              )).toList(),
-            ],
-          ],
+          ),
         ),
       ),
-      actions: [
-        TextButton(
-          onPressed: () async {
-            Navigator.of(context).pop();
-            if (success) {
-              await _fetchMedicionesData();
-              setState(() => selectedItems.clear());
-            }
-          },
-          child: const Text('Aceptar'),
-        ),
-      ],
-    ),
-  );
-}
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -329,6 +520,8 @@ Future<void> _showResultDialog(bool success, List<String> errores) async {
       appBar: AppBar(
         title: Text("Mediciones de ${widget.tipoPerforacion}"),
         backgroundColor: const Color(0xFF21899C),
+        elevation: 4,
+        shadowColor: Colors.black.withOpacity(0.3),
         actions: [
           if (selectedItems.isNotEmpty) ...[
             IconButton(
@@ -349,91 +542,88 @@ Future<void> _showResultDialog(bool success, List<String> errores) async {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const CircularProgressIndicator(),
-                  const SizedBox(height: 10),
+                  const CircularProgressIndicator(
+                    valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF21899C)),
+                  ),
+                  const SizedBox(height: 20),
                   Text(
                     mensajeUsuario,
-                    style: const TextStyle(fontSize: 16),
+                    style: const TextStyle(fontSize: 16, color: Colors.grey),
                   ),
                 ],
               ),
             )
           : medicionesData.isEmpty
               ? Center(
-                  child: Text(
-                    mensajeUsuario,
-                    style: const TextStyle(fontSize: 16),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.inbox,
+                        size: 64,
+                        color: Colors.grey[400],
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        mensajeUsuario,
+                        style: TextStyle(
+                          fontSize: 18,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                    ],
                   ),
                 )
               : Column(
                   children: [
-                    Padding(
-                      padding: const EdgeInsets.all(8.0),
-                      child: Text(
-                        "Mediciones encontradas: ${medicionesData.length}",
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.grey.withOpacity(0.2),
+                            blurRadius: 4,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            "Mediciones encontradas: ${medicionesData.length}",
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.grey[700],
+                            ),
+                          ),
+                          if (selectedItems.isNotEmpty)
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: Colors.blue[50],
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              child: Text(
+                                "${selectedItems.length} seleccionado(s)",
+                                style: TextStyle(
+                                  color: Colors.blue[700],
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                        ],
                       ),
                     ),
-                    if (selectedItems.isNotEmpty)
-                      Padding(
-                        padding: const EdgeInsets.all(8.0),
-                        child: Text(
-                          "${selectedItems.length} elemento(s) seleccionado(s)",
-                          style: TextStyle(color: Colors.blue),
-                        ),
-                      ),
+                    const SizedBox(height: 8),
                     Expanded(
                       child: ListView.builder(
                         itemCount: medicionesData.length,
                         itemBuilder: (context, index) {
-                          final medicion = medicionesData[index];
-                          final isSelected = selectedItems.contains(medicion['id']);
-                          final yaEnviado = medicion['envio'] == 1;
-
-                          return GestureDetector(
-                            onTap: yaEnviado ? null : () => _handleItemTap(index),
-                            child: Card(
-                              margin: const EdgeInsets.all(8),
-                              color: yaEnviado
-                                  ? Colors.grey[300]
-                                  : isSelected
-                                      ? Colors.blue.withOpacity(0.2)
-                                      : null,
-                              child: ListTile(
-                                title: Text("Medición ID: ${medicion['id']}"),
-                                subtitle: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text("Fecha: ${medicion['fecha']}"),
-                                    Text("Turno: ${medicion['turno']}"),
-                                    Text("Zona: ${medicion['zona']} - Labor: ${medicion['labor']}"),
-                                    Text("Veta: ${medicion['veta']}"),
-                                    Text("Avance programado: ${medicion['avance_programado']}m"),
-                                    Text("Dimensiones: ${medicion['ancho']}m x ${medicion['alto']}m"),
-                                    Text("Explosivos: ${medicion['kg_explosivos']}kg"),
-                                  ],
-                                ),
-                                trailing: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    if (yaEnviado)
-                                      const Icon(Icons.cloud_done, color: Colors.green),
-                                    if (isSelected)
-                                      const Padding(
-                                        padding: EdgeInsets.only(left: 8.0),
-                                        child: Icon(
-                                          Icons.check_circle,
-                                          color: Colors.blue,
-                                        ),
-                                      ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          );
+                          return _buildMedicionCard(index);
                         },
                       ),
                     ),
@@ -441,4 +631,51 @@ Future<void> _showResultDialog(bool success, List<String> errores) async {
                 ),
     );
   }
+  // Widget auxiliar para construir filas de información
+Widget _buildInfoRow(IconData icon, String label, String value) {
+  return Row(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Icon(icon, size: 16, color: const Color(0xFF21899C)),
+      const SizedBox(width: 8),
+      Expanded(
+        child: RichText(
+          text: TextSpan(
+            style: const TextStyle(
+              fontSize: 14,
+              color: Colors.black87,
+            ),
+            children: [
+              TextSpan(
+                text: "$label ",
+                style: const TextStyle(fontWeight: FontWeight.w500),
+              ),
+              TextSpan(text: value),
+            ],
+          ),
+        ),
+      ),
+    ],
+  );
+}
+
+// Widget auxiliar para construir chips de estado
+Widget _buildFlagChip(String text, Color color) {
+  return Container(
+    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+    decoration: BoxDecoration(
+      color: color.withOpacity(0.1),
+      borderRadius: BorderRadius.circular(12),
+      border: Border.all(color: color.withOpacity(0.3), width: 1),
+    ),
+    child: Text(
+      text,
+      style: TextStyle(
+        fontSize: 12,
+        fontWeight: FontWeight.w500,
+        color: color,
+      ),
+    ),
+  );
+}
 }

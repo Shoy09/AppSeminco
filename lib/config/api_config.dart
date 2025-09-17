@@ -1,5 +1,7 @@
 class ApiConfig {
-  static const String baseUrl = 'https://backend-seminco.onrender.com/api';
+  // static const String baseUrl = 'https://backend-seminco.onrender.com/api';
+  static const String baseUrl = 'https://backend-seminco.vercel.app/api';
+  //'http://192.168.0.102:3000/api';
   // 'https://backendseminco-production.up.railway.app/api';
   static const String loginEndpoint =
       '/auth/login'; // Asegurando que el endpoint es correcto
@@ -31,6 +33,7 @@ class ApiConfig {
   static const String perforacionEndpoint = '/mediciones';
 
   static const String medicionesHorizontalEndpoint = '/medicion-tal-horizontal';
+  static const String medicionesHorizontalEndpointRemanente = '/medicion-tal-horizontal/remanente';
   static const String medicionesLargoEndpoint = '/medicion-tal-largo';
     static const String toneladasEndpoint = '/toneladas';
     static const String pdfEndpoint = '/pdf-operacion';

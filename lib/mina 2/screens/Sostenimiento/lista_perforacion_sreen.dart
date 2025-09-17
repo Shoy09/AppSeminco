@@ -885,6 +885,7 @@ Widget _buildStateButton(
   );
 }
 
+
 void showRegisterOperationDialog(
   BuildContext context,
   List<Map<String, String>> codigoOperativos,
@@ -897,6 +898,15 @@ void showRegisterOperationDialog(
   print('operacionId: $operacionId');
   print('SelectedState: $selectedState');
   print('Existing Record: $existingRecord');
+
+  // Función auxiliar para comparar tiempos
+  int _compareTimes(String time1, String time2) {
+    List<int> parts1 = time1.split(':').map(int.parse).toList();
+    List<int> parts2 = time2.split(':').map(int.parse).toList();
+    
+    if (parts1[0] != parts2[0]) return parts1[0] - parts2[0];
+    return parts1[1] - parts2[1];
+  }
 
   // Variables para manejar el estado
   String? selectedCodigo;
@@ -912,83 +922,39 @@ void showRegisterOperationDialog(
   }
 
   // Función para generar intervalos de tiempo cada 5 minutos
-  // List<String> generateTimeIntervals(String turno) {
-  //   List<String> times = [];
-
-  //   if (turno == "DÍA") {
-  //     // Turno día: 07:00 - 18:55
-  //     for (int hour = 7; hour < 19; hour++) {
-  //       for (int minute = 0; minute < 60; minute += 5) {
-  //         times.add(
-  //             "${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}");
-  //       }
-  //     }
-  //   } else {
-  //     // Turno noche: 19:00 - 06:55
-  //     List<String> nightTimes = [];
-
-  //     // Primera parte: 19:00 - 23:55
-  //     for (int hour = 19; hour < 24; hour++) {
-  //       for (int minute = 0; minute < 60; minute += 5) {
-  //         nightTimes.add(
-  //             "${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}");
-  //       }
-  //     }
-
-  //     // Segunda parte: 00:00 - 06:55
-  //     for (int hour = 0; hour < 7; hour++) {
-  //       for (int minute = 0; minute < 60; minute += 5) {
-  //         nightTimes.add(
-  //             "${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}");
-  //       }
-  //     }
-
-  //     times.addAll(nightTimes);
-  //   }
-
-  //   return times;
-  // }
-
   List<String> generateTimeIntervals(String turno) {
-  List<String> times = [];
-
-  if (turno == "DÍA") {
-    // Turno día: 07:00 - 17:25 (antes era hasta 18:55)
-    for (int hour = 7; hour <= 17; hour++) {
-      for (int minute = 0; minute < 60; minute += 5) {
-        // Para la hora 17, solo llegar hasta 25 minutos
-        if (hour == 17 && minute > 25) break;
-        times.add(
-            "${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}");
+    List<String> times = [];
+    if (turno == "DÍA") {
+      // Turno día: 07:00 - 17:25
+      for (int hour = 7; hour <= 17; hour++) {
+        for (int minute = 0; minute < 60; minute += 5) {
+          if (hour == 17 && minute > 25) break;
+          times.add(
+              "${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}");
+        }
       }
-    }
-  } else {
-    // Turno noche: 19:00 - 05:25 (antes era hasta 06:55)
-    List<String> nightTimes = [];
-
-    // Primera parte: 19:00 - 23:55
-    for (int hour = 19; hour < 24; hour++) {
-      for (int minute = 0; minute < 60; minute += 5) {
-        nightTimes.add(
-            "${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}");
+    } else {
+      // Turno noche: 19:00 - 05:25
+      List<String> nightTimes = [];
+      // Primera parte: 19:00 - 23:55
+      for (int hour = 19; hour < 24; hour++) {
+        for (int minute = 0; minute < 60; minute += 5) {
+          nightTimes.add(
+              "${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}");
+        }
       }
-    }
-
-    // Segunda parte: 00:00 - 05:25
-    for (int hour = 0; hour <= 5; hour++) {
-      for (int minute = 0; minute < 60; minute += 5) {
-        // Para la hora 5, solo llegar hasta 25 minutos
-        if (hour == 5 && minute > 25) break;
-        nightTimes.add(
-            "${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}");
+      // Segunda parte: 00:00 - 05:25
+      for (int hour = 0; hour <= 5; hour++) {
+        for (int minute = 0; minute < 60; minute += 5) {
+          if (hour == 5 && minute > 25) break;
+          nightTimes.add(
+              "${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}");
+        }
       }
+      times.addAll(nightTimes);
     }
-
-    times.addAll(nightTimes);
+    return times;
   }
-
-  return times;
-}
 
   List<DropdownMenuItem<String>> obtenerOpcionesUnicas(
       List<Map<String, dynamic>> data) {
@@ -1005,85 +971,57 @@ void showRegisterOperationDialog(
 
   List<Map<String, String>> currentDataDialog = datadialog[selectedState] ?? [];
 
-  List<String> registeredHours = codigoOperativos
-      .where((item) => !isEditing || item["id"] != existingRecord!["id"])
-      .map((item) => item["hora_inicio"] ?? '')
-      .where((hora) => hora.isNotEmpty)
-      .toList();
-
-  // bool isValidTimeForShift(String time, String shift) {
-  //   try {
-  //     final hour = int.parse(time.split(':')[0]);
-  //     final minute = int.parse(time.split(':')[1]);
-      
-  //     if (shift == "DÍA") {
-  //       if (hour < 7 || hour > 18) return false;
-  //       if (hour == 18 && minute > 59) return false;
-  //     } else {
-  //       if (hour > 6 && hour < 19) return false;
-  //       if (hour == 6 && minute > 59) return false;
-  //     }
-  //     return true;
-  //   } catch (e) {
-  //     return false;
-  //   }
-  // }
-
-bool isValidTimeForShift(String time, String shift) {
-  try {
-    final hour = int.parse(time.split(':')[0]);
-    final minute = int.parse(time.split(':')[1]);
+  // Función para obtener el rango de horas válidas al editar
+  List<String> getValidTimeRangeForEdit() {
+    if (!isEditing) return [];
     
-    if (shift == "DÍA") {
-      // Validar entre 7:00 y 17:25
-      if (hour < 7 || hour > 17) return false;
-      if (hour == 17 && minute > 25) return false;
-    } else {
-      // Validar entre 19:00-23:55 y 00:00-05:25
-      if (hour > 5 && hour < 19) return false;
-      if (hour == 5 && minute > 25) return false;
+    // Encontrar el índice del registro actual
+    int currentIndex = codigoOperativos.indexWhere(
+      (item) => item["id"] == existingRecord!["id"],
+    );
+    
+    if (currentIndex == -1) return [];
+    
+    String? minTime;
+    String? maxTime;
+    
+    // Si hay registro anterior, su hora_inicio es el límite inferior
+    if (currentIndex > 0) {
+      minTime = codigoOperativos[currentIndex - 1]["hora_inicio"];
     }
-    return true;
-  } catch (e) {
-    return false;
+    
+    // Si hay registro siguiente, su hora_inicio es el límite superior
+    if (currentIndex < codigoOperativos.length - 1) {
+      maxTime = codigoOperativos[currentIndex + 1]["hora_inicio"];
+    }
+    
+    // Generar todas las opciones de tiempo
+    List<String> allTimes = generateTimeIntervals(turno);
+    
+    // Filtrar según los límites
+    return allTimes.where((time) {
+      if (minTime != null && _compareTimes(time, minTime) <= 0) return false;
+      if (maxTime != null && _compareTimes(time, maxTime) >= 0) return false;
+      return true;
+    }).toList();
   }
-}
 
-  bool isTimeValidForEdit(String newTime) {
-    if (registeredHours.isEmpty) return true;
-
-    List<String> sortedRegisteredHours = [...registeredHours];
-
-    if (turno != "DÍA") {
-      sortedRegisteredHours.sort((a, b) {
-        int aHour = int.parse(a.split(":")[0]);
-        int bHour = int.parse(b.split(":")[0]);
-        if ((aHour >= 19 && bHour >= 19) || (aHour < 7 && bHour < 7)) {
-          return a.compareTo(b);
-        } else if (aHour >= 19 && bHour < 7) {
-          return -1;
-        } else {
-          return 1;
-        }
-      });
-    } else {
-      sortedRegisteredHours.sort();
-    }
-
-    String lastTime = sortedRegisteredHours.last;
-    int lastHour = int.parse(lastTime.split(":")[0]);
-    int lastMinute = int.parse(lastTime.split(":")[1]);
-    int newHour = int.parse(newTime.split(":")[0]);
-    int newMinute = int.parse(newTime.split(":")[1]);
-
-    if (turno != "DÍA") {
-      if (lastHour >= 19 && newHour < 7) return true;
-      if ((lastHour >= 19 && newHour >= 19) || (lastHour < 7 && newHour < 7)) {
-        return newHour > lastHour || (newHour == lastHour && newMinute > lastMinute);
+  bool isValidTimeForShift(String time, String shift) {
+    try {
+      final hour = int.parse(time.split(':')[0]);
+      final minute = int.parse(time.split(':')[1]);
+      if (shift == "DÍA") {
+        // Validar entre 7:00 y 17:25
+        if (hour < 7 || hour > 17) return false;
+        if (hour == 17 && minute > 25) return false;
+      } else {
+        // Validar entre 19:00-23:55 y 00:00-05:25
+        if (hour > 5 && hour < 19) return false;
+        if (hour == 5 && minute > 25) return false;
       }
+      return true;
+    } catch (e) {
       return false;
-    } else {
-      return newHour > lastHour || (newHour == lastHour && newMinute > lastMinute);
     }
   }
 
@@ -1093,8 +1031,8 @@ bool isValidTimeForShift(String time, String shift) {
   }
 
   String horaFinalTurno = turno == "DÍA" ? "19:00" : "07:00";
-  bool esCambioTurno = DateTime.now().hour == (turno == "DÍA" ? 19 : 7) &&
-      DateTime.now().minute == 0;
+  bool esCambioTurno = DateTime.now().hour == (turno == "DÍA" ? 19 : 7) && 
+                       DateTime.now().minute == 0;
 
   if (esCambioTurno && codigoOperativos.isNotEmpty && !isEditing) {
     int lastId = int.parse(codigoOperativos.last["id"]!);
@@ -1109,26 +1047,42 @@ bool isValidTimeForShift(String time, String shift) {
           // Generar opciones de tiempo disponibles
           List<String> timeOptions = generateTimeIntervals(turno);
           
-          // Filtrar horas disponibles
-          List<String> availableTimeOptions = timeOptions.where((hora) {
-            if (registeredHours.isEmpty) return true;
+          // Filtrar horas disponibles según si es edición o creación
+          List<String> availableTimeOptions;
+          
+          if (isEditing) {
+            // En edición: usar el rango entre registro anterior y siguiente
+            availableTimeOptions = getValidTimeRangeForEdit();
             
-            if (!isValidTimeForShift(hora, turno)) return false;
-            
-            return isTimeValidForEdit(hora);
-          }).toList();
-
-          // Asegurarnos de que el selectedTime esté en las opciones disponibles
-          if (isEditing && selectedTime != null && !availableTimeOptions.contains(selectedTime)) {
-            availableTimeOptions.add(selectedTime!);
-            availableTimeOptions.sort();
+            // Asegurarnos de que el selectedTime esté en las opciones disponibles
+            if (selectedTime != null && !availableTimeOptions.contains(selectedTime)) {
+              availableTimeOptions.add(selectedTime!);
+              availableTimeOptions.sort((a, b) => _compareTimes(a, b));
+            }
+          } else {
+            // En creación: horas posteriores a la última registrada
+            List<String> registeredHours = codigoOperativos
+                .map((item) => item["hora_inicio"] ?? '')
+                .where((hora) => hora.isNotEmpty)
+                .toList();
+                
+            availableTimeOptions = timeOptions.where((hora) {
+              if (!isValidTimeForShift(hora, turno)) return false;
+              if (registeredHours.isEmpty) return true;
+              
+              // Encontrar la última hora registrada
+              String lastTime = registeredHours.reduce((a, b) => 
+                  _compareTimes(a, b) > 0 ? a : b);
+              
+              return _compareTimes(hora, lastTime) > 0;
+            }).toList();
           }
 
           return AlertDialog(
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             title: Center(
               child: Text(
-                isEditing ? "EDITAR OPERACIÓN" : "REGISTRA OPERACIÓN", 
+                isEditing ? "EDITAR OPERACIÓN" : "REGISTRA OPERACIÓN",
                 style: TextStyle(fontWeight: FontWeight.bold)
               ),
             ),
@@ -1177,20 +1131,20 @@ bool isValidTimeForShift(String time, String shift) {
                       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                       children: [
                         ElevatedButton(
-  onPressed: () {
-    setState(() {
-      selectedCodigo = isEditing ? existingRecord['codigo'] : null;
-      selectedTime = isEditing ? existingRecord['hora_inicio'] : null;
-      if (isEditing) {
-        timeController.text = existingRecord['hora_inicio'] ?? '';
-      } else {
-        timeController.clear();
-      }
-    });
-  },
-  style: ElevatedButton.styleFrom(backgroundColor: Colors.blue),
-  child: Text("Limpiar"),
-),
+                          onPressed: () {
+                            setState(() {
+                              selectedCodigo = isEditing ? existingRecord['codigo'] : null;
+                              selectedTime = isEditing ? existingRecord['hora_inicio'] : null;
+                              if (isEditing) {
+                                timeController.text = existingRecord['hora_inicio'] ?? '';
+                              } else {
+                                timeController.clear();
+                              }
+                            });
+                          },
+                          style: ElevatedButton.styleFrom(backgroundColor: Colors.blue),
+                          child: Text("Limpiar"),
+                        ),
                         ElevatedButton(
                           onPressed: () async {
                             if (selectedCodigo != null && selectedTime != null) {
@@ -1218,18 +1172,19 @@ bool isValidTimeForShift(String time, String shift) {
                                 return;
                               }
                               
-                              if (!isTimeValidForEdit(selectedTime!)) {
+                              // Validación específica para edición
+                              if (isEditing && !getValidTimeRangeForEdit().contains(selectedTime!)) {
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
-                                    content: Text("La hora debe ser posterior a la última registrada"),
+                                    content: Text("La hora debe estar entre el registro anterior y el siguiente"),
                                     backgroundColor: Colors.red,
                                   ),
                                 );
                                 return;
                               }
-                              
+
                               if (isEditing) {
-                                // Lógica para actualizar
+                                // Lógica para actualizar el registro actual
                                 int result = await DatabaseHelper_Mina2().updateEstado(
                                   int.parse(existingRecord!["id"]!),
                                   int.parse(existingRecord["numero"]!),
@@ -1239,18 +1194,32 @@ bool isValidTimeForShift(String time, String shift) {
                                   existingRecord["hora_final"] ?? "",
                                 );
                                 
-                                // Si estamos editando el último registro, actualizamos la hora_final del anterior
-                                if (isLastRecord()) {
-                                  final currentIndex = codigoOperativos.indexWhere(
-                                    (item) => item["id"] == existingRecord["id"]);
-                                  
-                                  if (currentIndex > 0) {
-                                    final previousRecord = codigoOperativos[currentIndex - 1];
-                                    await DatabaseHelper_Mina2().updateHoraFinal(
-                                      int.parse(previousRecord["id"]!),
-                                      selectedTime!,
-                                    );
-                                  }
+                                final currentIndex = codigoOperativos.indexWhere(
+                                  (item) => item["id"] == existingRecord["id"],
+                                );
+                                
+                                if (currentIndex > 0) {
+                                  // 🔹 Actualizar hora_final del registro anterior con la nueva hora_inicio de este
+                                  final previousRecord = codigoOperativos[currentIndex - 1];
+                                  await DatabaseHelper_Mina2().updateHoraFinal(
+                                    int.parse(previousRecord["id"]!),
+                                    selectedTime!,
+                                  );
+                                }
+                                
+                                if (currentIndex < codigoOperativos.length - 1) {
+                                  // 🔹 Si no es el último, la hora_final de este registro debe ser la hora_inicio del siguiente
+                                  final nextRecord = codigoOperativos[currentIndex + 1];
+                                  await DatabaseHelper_Mina2().updateHoraFinal(
+                                    int.parse(existingRecord["id"]!),
+                                    nextRecord["hora_inicio"]!,
+                                  );
+                                } else {
+                                  // 🔹 Si es el último, su hora_final queda vacía
+                                  await DatabaseHelper_Mina2().updateHoraFinal(
+                                    int.parse(existingRecord["id"]!),
+                                    "",
+                                  );
                                 }
                                 
                                 if (result > 0) {
@@ -1272,13 +1241,12 @@ bool isValidTimeForShift(String time, String shift) {
                                 }
                               } else {
                                 // Lógica para crear
-                                int newNumber = codigoOperativos.isNotEmpty
-                                    ? int.parse(codigoOperativos.last["numero"]!) + 1
-                                    : 1;
-                                String horaInicio = codigoOperativos.isNotEmpty &&
-                                        codigoOperativos.last["hora_final"]!.isNotEmpty
-                                    ? codigoOperativos.last["hora_final"]!
-                                    : selectedTime!;
+                                int newNumber = codigoOperativos.isNotEmpty ? 
+                                    int.parse(codigoOperativos.last["numero"]!) + 1 : 1;
+                                    
+                                String horaInicio = codigoOperativos.isNotEmpty && 
+                                    codigoOperativos.last["hora_final"]!.isNotEmpty ? 
+                                    codigoOperativos.last["hora_final"]! : selectedTime!;
                                     
                                 if (codigoOperativos.isNotEmpty) {
                                   int lastId = int.parse(codigoOperativos.last["id"]!);
@@ -1303,6 +1271,7 @@ bool isValidTimeForShift(String time, String shift) {
                                   );
                                   fetchEstados();
                                   Navigator.of(context).pop();
+                                  
                                   Future.delayed(Duration.zero, () {
                                     showDialog(
                                       barrierDismissible: false,
@@ -1316,26 +1285,26 @@ bool isValidTimeForShift(String time, String shift) {
                                             width: 700,
                                             height: 800,
                                             padding: const EdgeInsets.symmetric(
-                                                horizontal: 8.0, vertical: 10.0),
+                                              horizontal: 8.0, vertical: 10.0),
                                             decoration: BoxDecoration(
                                               border: Border.all(color: Colors.blue, width: 2),
                                               borderRadius: BorderRadius.circular(16),
                                             ),
-                                            child: selectedState == "OPERATIVO"
-                                                ? RegistroPerforacionScreen(
-                                                    onDataInserted: fetchEstados,
-                                                    estadoId: result,
-                                                    estado: selectedState,
-                                                    operacionId: operacionId,
-                                                    tipoOperacion: widget.tipoOperacion,
-                                                  )
-                                                : RegistroPerforacionScreenNoOperative(
-                                                    onDataInserted: fetchEstados,
-                                                    estadoId: result,
-                                                    estado: selectedState,
-                                                    operacionId: operacionId,
-                                                    tipoOperacion: widget.tipoOperacion,
-                                                  ),
+                                            child: selectedState == "OPERATIVO" ? 
+                                              RegistroPerforacionScreen(
+                                                onDataInserted: fetchEstados,
+                                                estadoId: result,
+                                                estado: selectedState,
+                                                operacionId: operacionId,
+                                                tipoOperacion: widget.tipoOperacion,
+                                              ) : 
+                                              RegistroPerforacionScreenNoOperative(
+                                                onDataInserted: fetchEstados,
+                                                estadoId: result,
+                                                estado: selectedState,
+                                                operacionId: operacionId,
+                                                tipoOperacion: widget.tipoOperacion,
+                                              ),
                                           ),
                                         );
                                       },
@@ -1360,14 +1329,14 @@ bool isValidTimeForShift(String time, String shift) {
                             }
                           },
                           style: ElevatedButton.styleFrom(
-                              backgroundColor: isEditing ? Colors.orange : Colors.green),
+                            backgroundColor: isEditing ? Colors.orange : Colors.green),
                           child: Text(isEditing ? "Actualizar" : "Crear"),
                         ),
                       ],
                     ),
                     SizedBox(height: 10),
-                    Text("(*) Los campos con asterisco son obligatorios.",
-                        style: TextStyle(fontSize: 12, color: Colors.grey)),
+                    Text("(*) Los campos con asterisco son obligatorios.", 
+                         style: TextStyle(fontSize: 12, color: Colors.grey)),
                     SizedBox(height: 16),
                   ],
                 ),

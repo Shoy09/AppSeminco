@@ -138,4 +138,50 @@ Future<List<int>?> crearOperacionSostenimiento(Map<String, dynamic> operacionDat
     return false;
   }
 }
+
+
+  // Operaciones de Carguio
+Future<List<int>?> crearOperacionCarguio(Map<String, dynamic> operacionData) async {
+  try {
+    final response = await _apiService.post(
+      ApiConfig_mina2.operacioncarguioEndpoint,
+      operacionData,
+    );
+    
+    if (response.statusCode == 201) {
+      final responseData = json.decode(response.body);
+      final ids = List<int>.from(responseData['operaciones_ids'] ?? []);
+      return ids;
+    }
+    return null;
+  } catch (e) {
+    print('Error al crear operación de Carguio: $e');
+    return null;
+  }
+}
+
+  Future<bool> actualizarOperacionCarguio(Map<String, dynamic> operacionData) async {
+  try {
+    final response = await _apiService.put(
+      ApiConfig_mina2.operacioncarguioEndpoint,
+      operacionData,
+    );
+
+    final statusCode = response.statusCode;
+
+    if (statusCode == 200) {
+      return true;
+    } else if (statusCode == 207) {
+      print('Operación de Carguio actualizada parcialmente: ${response.body}');
+      return false;
+    } else {
+      print('Error del servidor al actualizar Carguio ($statusCode): ${response.body}');
+      return false;
+    }
+  } catch (e) {
+    print('Error al actualizar operación de Carguio: $e');
+    return false;
+  }
+}
+
 }
