@@ -83,8 +83,8 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       title: 'I-MINER',
       theme: ThemeData(primarySwatch: Colors.blue),
-       home: SplashScreen(),
-      //  home: LoginScreen(),
+      //  home: SplashScreen(),
+      home: LoginScreen(),
       
     );
   }

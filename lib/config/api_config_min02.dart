@@ -40,4 +40,9 @@ class ApiConfig_mina2 {
   static const String checklistEndpoint = '/check-list';
   static const String pdfEndpoint = '/pdf-operacion';
   static const String origenDestinoEndpoint = '/origen-destino';
+  static const String JefeGuardiaAceroEndpoint = '/jefe-guardia-acero';
+    static const String ProcesoAceroEndpoint = '/tipo-acero';
+    static const String OperadorAceroEndpoint = '/operario-acero';
+    static const String ingresosAcerosEndpoint = '/ingresos-aceros';
+    static const String salidasAcerosEndpoint = '/salida-aceros';
 }

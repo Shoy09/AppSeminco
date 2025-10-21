@@ -3,7 +3,9 @@ import 'package:app_seminco/components/carga.dart';
 import 'package:app_seminco/database/database_helper_mina_2.dart';
 import 'package:app_seminco/inicio/login.dart';
 import 'package:app_seminco/mina%202/models/formato_plan_mineral.dart';
+import 'package:app_seminco/mina%202/screens/Aceros/SeleccEntradaSalida.dart';
 import 'package:app_seminco/mina%202/screens/Actualizar%20Datos/seccion_datos_api_screen.dart';
+import 'package:app_seminco/mina%202/screens/Dash/ActualizacionDialog.dart';
 import 'package:app_seminco/mina%202/screens/Largo/lista_perforacion_sreen.dart';
 import 'package:app_seminco/mina%202/screens/Mediciones/inicio.dart';
 import 'package:app_seminco/mina%202/screens/Mediciones/select_tipo_explosivo.dart';
@@ -20,6 +22,9 @@ import 'package:app_seminco/mina%202/services/Plan%20mensual/api_service_FechasP
 import 'package:app_seminco/mina%202/services/Plan%20mensual/api_service_plan_mensual.dart';
 import 'package:app_seminco/mina%202/services/Plan%20mensual/api_service_plan_mensual_metraje.dart';
 import 'package:app_seminco/mina%202/services/Plan%20mensual/api_service_plan_mensual_produccion.dart';
+import 'package:app_seminco/mina%202/services/acero/ApiServiceJefeGuardiaAcero%20.dart';
+import 'package:app_seminco/mina%202/services/acero/ApiServiceOperadorAcero.dart';
+import 'package:app_seminco/mina%202/services/acero/ApiServiceProcesoAcero.dart';
 import 'package:app_seminco/mina%202/services/api_service_checklist.dart';
 import 'package:app_seminco/mina%202/services/api_service_destinatarios.dart';
 import 'package:app_seminco/mina%202/services/api_service_estado.dart';
@@ -68,75 +73,130 @@ class _ReporteScreenMina2State extends State<ReporteScreenMina2> {
   }
 
   Future<void> _actualizarDatos(BuildContext context) async {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => ProgressDialog(message: 'Iniciando actualización...'),
-    );
+  // Definir las opciones disponibles (todas seleccionadas por defecto)
+  final opcionesDisponibles = {
+  "Formatos Plan Mineral": true,
+  "Estados": true,
+  "Tipos Perforación": true,
+  "Empresas": true,
+  "Equipos": true,
+  "Accesorios": true,
+  "Explosivos": true,
+  "Explosivos Uni": true,
+  "Destinatarios": true,
+  "Plan Mensual": true,
+  "Plan Metraje": true,
+  "Plan Producción": true,
+  "Toneladas": true,
+  "Checklist": true,
+  "origen-destino": true,
+  "pdf": true,
+  "Jefes Guardia Acero": true,
+    "Procesos Acero": true,
+    "Operadores Acero": true,
+};
 
-    final fechasService = FechasPlanMensualService();
-    try {
-      final ultimaFecha = await fechasService.getUltimaFecha();
 
-      if (ultimaFecha == null)
-        throw Exception('No se encontró una fecha válida');
+  // Mostrar diálogo de selección
+  final opcionesSeleccionadas = await showDialog<Map<String, bool>>(
+    context: context,
+    builder: (context) => ActualizacionDialog(opcionesIniciales: opcionesDisponibles),
+  );
 
-      final anio = ultimaFecha.fechaIngreso!;
-      final mes = ultimaFecha.mes!;
+  // Si el usuario cancela o cierra el diálogo
+  if (opcionesSeleccionadas == null) {
+    return;
+  }
 
-      final Map<String, Future<void> Function()> requests = {
-        "Formatos Plan Mineral": fetchFormatosPlanMineral,
-        "Estados": fetchEstados,
-        "Tipos Perforación": fetchTiposPerforacion,
-        "Empresas": fetchEmpresa,
-        "Equipos": fetchEquipo,
-        "Accesorios": fetchAccesorios,
-        "Explosivos": fetchExplosivos,
-        "Explosivos Uni": fetchExplosivosUni,
-        "Destinatarios": fetchDestinatarios,
-        "Plan Mensual": () => fetchPlanMensual(anio, mes),
-        "Plan Metraje": () => fetchPlanMetraje(anio, mes),
-        "Plan Producción": () => fetchPlanProduccion(anio, mes),
-        "Toneladas": fetchToneladas,
-        "Checklist": fetchCheckList,
-        "origen-destino": fetchOrigenDestino,
-        "pdf": () => fetchPdfsDelMes(mes),
-      };
+  // Mostrar diálogo de progreso inicial
+  showDialog(
+    context: context,
+    barrierDismissible: false,
+    builder: (_) => ProgressDialog(message: 'Iniciando actualización...'),
+  );
 
-      bool errorOcurrido = false;
+  final fechasService = FechasPlanMensualService();
+  
+  try {
+    final ultimaFecha = await fechasService.getUltimaFecha();
+    if (ultimaFecha == null) {
+      throw Exception('No se encontró una fecha válida');
+    }
 
-      for (var entry in requests.entries) {
+    final anio = ultimaFecha.fechaIngreso!;
+    final mes = ultimaFecha.mes!;
+
+    // Mapeo de funciones (igual que antes)
+    final Map<String, Future<void> Function()> requests = {
+  "Formatos Plan Mineral": fetchFormatosPlanMineral,
+  "Estados": fetchEstados,
+  "Tipos Perforación": fetchTiposPerforacion,
+  "Empresas": fetchEmpresa,
+  "Equipos": fetchEquipo,
+  "Accesorios": fetchAccesorios,
+  "Explosivos": fetchExplosivos,
+  "Explosivos Uni": fetchExplosivosUni,
+  "Destinatarios": fetchDestinatarios,
+  "Plan Mensual": () => fetchPlanMensual(anio, mes),
+  "Plan Metraje": () => fetchPlanMetraje(anio, mes),
+  "Plan Producción": () => fetchPlanProduccion(anio, mes),
+  "Toneladas": fetchToneladas,
+  "Checklist": fetchCheckList,
+  "origen-destino": fetchOrigenDestino,
+  "pdf": () => fetchPdfsDelMes(mes),
+  "Jefes Guardia Acero": fetchJefesGuardia,
+      "Procesos Acero": fetchProcesosAcero,
+      "Operadores Acero": fetchOperadores,
+};
+
+
+    bool errorOcurrido = false;
+    int actualizacionesRealizadas = 0;
+    int totalSeleccionadas = opcionesSeleccionadas.values.where((v) => v).length;
+
+    // Solo ejecutar las opciones seleccionadas
+    for (var entry in requests.entries) {
+      if (opcionesSeleccionadas[entry.key] == true) {
+        // Actualizar diálogo de progreso
         Navigator.of(context).pop();
         showDialog(
           context: context,
           barrierDismissible: false,
-          builder: (_) =>
-              ProgressDialog(message: 'Actualizando ${entry.key}...'),
+          builder: (_) => ProgressDialog(
+            message: 'Actualizando ${entry.key}... ($actualizacionesRealizadas/$totalSeleccionadas)',
+          ),
         );
+
         try {
           await entry.value();
+          actualizacionesRealizadas++;
         } catch (e) {
           errorOcurrido = true;
+          actualizacionesRealizadas++;
           print("❌ Error en ${entry.key}: $e");
         }
       }
-
-      Navigator.of(context).pop(); // Cerrar el último diálogo
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(errorOcurrido
-              ? '❗ Algunas actualizaciones fallaron, revisa los logs.'
-              : '✅ Todos los datos fueron actualizados correctamente'),
-        ),
-      );
-    } catch (e) {
-      Navigator.of(context).pop(); // Cerrar diálogo
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('❌ Error al actualizar: $e')),
-      );
     }
+
+    Navigator.of(context).pop(); // Cerrar el último diálogo
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(errorOcurrido
+            ? '❗ ${actualizacionesRealizadas}/$totalSeleccionadas actualizaciones completadas (algunas fallaron)'
+            : '✅ $actualizacionesRealizadas/$totalSeleccionadas actualizaciones completadas correctamente'),
+      ),
+    );
+    
+  } catch (e) {
+    Navigator.of(context).pop(); // Cerrar diálogo
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('❌ Error al actualizar: $e')),
+    );
   }
+}
+
+
 
   Future<void> fetchPdfsDelMes(String mes) async {
   try {
@@ -152,6 +212,65 @@ class _ReporteScreenMina2State extends State<ReporteScreenMina2> {
     print("Error al cargar los PDFs: $e");
   }
 }
+
+Future<void> fetchJefesGuardia() async {
+  try {
+    final apiService = ApiServiceJefeGuardiaAcero(); // Crear instancia del service
+
+    final jefesGuardia = await apiService.fetchJefesGuardia(
+        widget.token); // Obtener jefes de guardia desde la API
+    print("Jefes de guardia cargados correctamente: ${jefesGuardia.length} registros");
+
+    // Verificar si los datos se almacenaron correctamente en la base de datos local
+    final dbHelper = DatabaseHelper_Mina2();
+    final jefesBD = await dbHelper.getAll(
+        'JEFE_DE_GUARDIA_Acero'); // Obtener jefes de la base de datos local
+    print("Jefes de guardia en la base de datos local: ${jefesBD.length} registros");
+    
+  } catch (e) {
+    print("Error al cargar los jefes de guardia: $e");
+  }
+}
+
+Future<void> fetchProcesosAcero() async {
+  try {
+    final apiService = ApiServiceProcesoAcero(); // Crear instancia del service
+
+    final procesosAcero = await apiService.fetchProcesosAcero(
+        widget.token); // Obtener procesos de acero desde la API
+    print("Procesos de acero cargados correctamente: ${procesosAcero.length} registros");
+
+    // Verificar si los datos se almacenaron correctamente en la base de datos local
+    final dbHelper = DatabaseHelper_Mina2();
+    final procesosBD = await dbHelper.getAll(
+        'procesos_acero'); // Obtener procesos de la base de datos local
+    print("Procesos en la base de datos local: ${procesosBD.length} registros");
+    
+  } catch (e) {
+    print("Error al cargar los procesos de acero: $e");
+  }
+}
+
+Future<void> fetchOperadores() async {
+  try {
+    final apiService = ApiServiceOperadorAcero(); // Crear instancia del service
+
+    final operadores = await apiService.fetchOperadores(
+        widget.token); // Obtener operadores desde la API
+    print("Operadores cargados correctamente: ${operadores.length} registros");
+
+    // Verificar si los datos se almacenaron correctamente en la base de datos local
+    final dbHelper = DatabaseHelper_Mina2();
+    final operadoresBD = await dbHelper.getAll(
+        'OPERADOR_Acero'); // Obtener operadores de la base de datos local
+    print("Operadores en la base de datos local: ${operadoresBD.length} registros");
+
+    
+  } catch (e) {
+    print("Error al cargar los operadores: $e");
+  }
+}
+
 
 
   Future<void> _inicializarBaseDeDatos() async {
@@ -718,13 +837,12 @@ Future<void> fetchCheckList() async {
             imagePath: 'assets/images/aceros_de_perforacion.png',
             backgroundColor: const Color(0xFF21899C),
             onPressed: () {
-              // Descomenta y reemplaza con pantalla correcta cuando esté lista
-              // Navigator.push(
-              //   context,
-              //   MaterialPageRoute(
-              //     builder: (context) => AccesoriosExplosivosScreen(),
-              //   ),
-              // );
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => SeleccEntradaSalida(),
+                ),
+              );
             },
           ),
         );

@@ -1045,7 +1045,7 @@ Future<void> _selectDate(BuildContext context) async {
                       if (confirmDelete == true) {
                         final dbHelper = DatabaseHelper_Mina1();
                         final result = await dbHelper.delete(
-                            'PerforacionTaladroLargo', id);
+                            'Sostenimiento', id);
 
                         if (result > 0) {
                           ScaffoldMessenger.of(context).showSnackBar(

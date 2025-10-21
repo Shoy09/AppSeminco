@@ -1,6 +1,7 @@
 class ApiConfig {
   // static const String baseUrl = 'https://backend-seminco.onrender.com/api';
-  static const String baseUrl = 'https://backend-seminco.vercel.app/api';
+  static const String baseUrl = 
+  'https://backend-seminco.vercel.app/api';
   //'http://192.168.0.102:3000/api';
   // 'https://backendseminco-production.up.railway.app/api';
   static const String loginEndpoint =
@@ -37,4 +38,10 @@ class ApiConfig {
   static const String medicionesLargoEndpoint = '/medicion-tal-largo';
     static const String toneladasEndpoint = '/toneladas';
     static const String pdfEndpoint = '/pdf-operacion';
+    static const String JefeGuardiaAceroEndpoint = '/jefe-guardia-acero';
+    static const String ProcesoAceroEndpoint = '/tipo-acero';
+    static const String OperadorAceroEndpoint = '/operario-acero';
+    static const String ingresosAcerosEndpoint = '/ingresos-aceros';
+    static const String salidasAcerosEndpoint = '/salida-aceros';
+    static const String carguioEndpoint = '/carguio';
 }

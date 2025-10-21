@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:app_seminco/database/database_helper.dart';
 import 'package:app_seminco/mina%201/models/Envio%20Api/medicion_horizontal.dart';
+import 'package:app_seminco/mina%201/screens/Actualizar%20Datos/Aceros/detalle_aceros_screen.dart';
 import 'package:app_seminco/mina%201/screens/Actualizar%20Datos/Largo/detalle_largo_screen.dart';
 import 'package:app_seminco/mina%201/screens/Actualizar%20Datos/Explosivos/detalle_explosivos_screen.dart';
 import 'package:app_seminco/mina%201/screens/Actualizar%20Datos/Horizontal/detalle_horizontal_screen.dart';
@@ -9,7 +10,10 @@ import 'package:app_seminco/mina%201/screens/Actualizar%20Datos/Largo/detalle_la
 import 'package:app_seminco/mina%201/screens/Actualizar%20Datos/Mediciones/horizontal/detalle_mediciones_screen.dart';
 import 'package:app_seminco/mina%201/screens/Actualizar%20Datos/Mediciones/largo/detalle_mediciones_screen.dart';
 import 'package:app_seminco/mina%201/screens/Actualizar%20Datos/Sostenimiento/detalle_sostenimiento_screen.dart';
+import 'package:app_seminco/mina%201/screens/Actualizar%20Datos/carguio/detalle_carguio_screen.dart';
+import 'package:app_seminco/mina%201/services/Enviar%20nube/aceros_service.dart';
 import 'package:app_seminco/mina%201/services/Enviar%20nube/api_service_mediciones_horizontal.dart';
+import 'package:app_seminco/mina%201/services/Enviar%20nube/carguio_service.dart';
 import 'package:app_seminco/mina%201/services/Enviar%20nube/operacion_service.dart';
 import 'package:app_seminco/mina%201/services/Enviar%20nube/ExploracionService_service.dart';
 import 'package:app_seminco/mina%201/services/Enviar%20nube/operacion_service.dart';
@@ -30,6 +34,8 @@ class _SeccionesScreenState extends State<SeccionesScreen> {
         DetalleSostenimientoScreen(tipoOperacion: "SOSTENIMIENTO"),
     "EXPLOSIVOS": (context) => DetalleExplosivos(tipoOperacion: "EXPLOSIVOS"),
     "MEDICIONES TAL. HORIZONTAL": (context) => ListaMedicionesScreen(tipoPerforacion: "MEDICIONES TAL. HORIZONTAL"),
+    "ACEROS DE PERFORACIÓN": (context) => ListaAcerosScreen(tipoProceso: "ACEROS DE PERFORACIÓN"),
+    "CARGUÍO": (context) => ListaCarguiosScreen(tipoOperacion: "CARGUÍO"),
     
       };
 
@@ -41,6 +47,7 @@ class _SeccionesScreenState extends State<SeccionesScreen> {
     "MEDICIONES",
     "CARGUÍO",
     "MEDICIONES TAL. HORIZONTAL",
+    "ACEROS DE PERFORACIÓN",
   ];
 
   Map<String, bool> _seccionesExpandida = {};
@@ -49,13 +56,20 @@ class _SeccionesScreenState extends State<SeccionesScreen> {
   Set<int> idsTaladroLargo = {};
   Set<int> idsSostenimiento = {};
   Set<int> idsHorizontal = {};
+  Set<int> idscarguio = {};
   Set<int> idsExplosivos = {};
   Set<int> idsMedicionesHorizontal = {};
+  Set<int> idsIngresosAceros = {};
+  Set<int> idsSalidasAceros = {};
+  
   List<Map<String, dynamic>> operacionDataLargo = [];
   List<Map<String, dynamic>> operacionDataHorizontal = [];
   List<Map<String, dynamic>> operacionDataSostenimiento = [];
+  List<Map<String, dynamic>> operacionDatacarguio = [];
   List<Map<String, dynamic>> operacionDataExplosi = [];
   List<Map<String, dynamic>> operacionDataMedicionesHorizontal = [];
+  List<Map<String, dynamic>> ingresosAcerosData = [];
+  List<Map<String, dynamic>> salidasAcerosData = [];
 
   bool isLoading = true;
   String mensajeUsuario = "Cargando registros...";
@@ -68,7 +82,7 @@ class _SeccionesScreenState extends State<SeccionesScreen> {
     _fetchOperacionDataHorizontal();
     _fetchExploracionesDataExplo();
     _fetchOperacionDataSostenimiento();
-    
+    _fetchOperacionDataCarguio();
   }
 
   Future<void> _fetchOperacionDataLargo() async {
@@ -130,6 +144,26 @@ class _SeccionesScreenState extends State<SeccionesScreen> {
     }
   }
 
+    Future<void> _fetchOperacionDataCarguio() async {
+    DatabaseHelper_Mina1 dbHelper = DatabaseHelper_Mina1();
+    List<Map<String, dynamic>> data =
+        await dbHelper.getOperacionBytipoOperacion("CARGUÍO");
+
+    print('Datos recibidos de la base de datos: $data');
+
+    if (data.isNotEmpty) {
+      setState(() {
+        operacionDatacarguio = data;
+        isLoading = false;
+      });
+    } else {
+      setState(() {
+        mensajeUsuario = "No se encontraron registros.";
+        isLoading = false;
+      });
+    }
+  }
+
   Future<void> _fetchExploracionesDataExplo() async {
     DatabaseHelper_Mina1 dbHelper = DatabaseHelper_Mina1();
     List<Map<String, dynamic>> data = await dbHelper.getExploraciones();
@@ -149,8 +183,7 @@ class _SeccionesScreenState extends State<SeccionesScreen> {
     }
   }
 
-
-  void _mostrarDialogo(BuildContext context) async {
+void _mostrarDialogo(BuildContext context) async {
     DatabaseHelper_Mina1 dbHelper = DatabaseHelper_Mina1();
 
     // Limpiar las estructuras antes de llenarlas
@@ -160,19 +193,29 @@ class _SeccionesScreenState extends State<SeccionesScreen> {
     idsHorizontal.clear();
     idsExplosivos.clear();
     idsMedicionesHorizontal.clear();
+    idsIngresosAceros.clear();
+    idsSalidasAceros.clear();
+    idscarguio.clear();
 
     for (var seccion in _pantallas.keys) {
       List<Map<String, dynamic>> datos;
 
       if (seccion == "EXPLOSIVOS") {
         datos = await dbHelper.getExploracionesPendientes();
-      }else if  (seccion == "MEDICIONES TAL. HORIZONTAL") {
+      } else if (seccion == "MEDICIONES TAL. HORIZONTAL") {
         datos = await dbHelper.getMedicionesHorizontalPendientes();
-      }
-    else {
+      } else if (seccion == "ACEROS DE PERFORACIÓN") {
+        // Para aceros, combinamos ingresos y salidas pendientes
+        List<Map<String, dynamic>> ingresosPendientes = await dbHelper.getIngresosPendientes();
+        List<Map<String, dynamic>> salidasPendientes = await dbHelper.getSalidasPendientes();
+        
+        datos = [
+          ...ingresosPendientes.map((e) => {...e, 'tipo_acero_registro': 'INGRESO'}),
+          ...salidasPendientes.map((e) => {...e, 'tipo_acero_registro': 'SALIDA'})
+        ];
+      } else {
         datos = await dbHelper.getOperacionPendienteByTipo(seccion);
         print("Datos recibidos para $seccion: $datos");
-
       }
 
       // Guardar los datos completos
@@ -187,19 +230,31 @@ class _SeccionesScreenState extends State<SeccionesScreen> {
           idsSostenimiento.add(id);
         } else if (seccion == "PERFORACIÓN HORIZONTAL") {
           idsHorizontal.add(id);
+        } else if (seccion == "CARGUÍO") {
+          idscarguio.add(id);
         } else if (seccion == "EXPLOSIVOS") {
           idsExplosivos.add(id);
         } else if (seccion == "MEDICIONES TAL. HORIZONTAL") {
           idsMedicionesHorizontal.add(id);
-        } 
+        } else if (seccion == "ACEROS DE PERFORACIÓN") {
+          // Para aceros, diferenciamos entre ingresos y salidas
+          if (operacion['tipo_acero_registro'] == 'INGRESO') {
+            idsIngresosAceros.add(id);
+          } else {
+            idsSalidasAceros.add(id);
+          }
+        }
       }
     }
 
     print("Taladro Largo IDs: $idsTaladroLargo");
     print("Sostenimiento IDs: $idsSostenimiento");
     print("Horizontal IDs: $idsHorizontal");
+    print("Carguio IDs: $idscarguio");
     print("Explosivos IDs: $idsExplosivos");
-    print("MEdicion horizontal IDs: $idsMedicionesHorizontal");
+    print("Medicion horizontal IDs: $idsMedicionesHorizontal");
+    print("Ingresos Aceros IDs: $idsIngresosAceros");
+    print("Salidas Aceros IDs: $idsSalidasAceros");
 
     showDialog(
       context: context,
@@ -238,59 +293,7 @@ class _SeccionesScreenState extends State<SeccionesScreen> {
                                 vertical: 4.0, horizontal: 10.0),
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.start,
-                              children: seccion == "EXPLOSIVOS"
-                                  ? [
-                                      Text("Fecha: ${operacion['fecha']}",
-                                          style: TextStyle(fontSize: 14)),
-                                      SizedBox(width: 10),
-                                      Text("Turno: ${operacion['turno']}",
-                                          style: TextStyle(fontSize: 14)),
-                                      SizedBox(width: 10),
-                                      Text("Taladro: ${operacion['taladro']}",
-                                          style: TextStyle(fontSize: 14)),
-                                      SizedBox(width: 10),
-                                      Text("Zona: ${operacion['zona']}",
-                                          style: TextStyle(fontSize: 14)),
-                                      SizedBox(width: 10),
-                                      Text("Labor: ${operacion['labor']}",
-                                          style: TextStyle(fontSize: 14)),
-                                      SizedBox(width: 10),
-                                      Text("Estado: ${operacion['estado']}",
-                                          style: TextStyle(fontSize: 14)),
-                                    ]
-                                    : seccion == "MEDICIONES TAL. HORIZONTAL"
-                                    ? [
-                                        Text("Mes: ${operacion['mes']}",
-                                            style: TextStyle(fontSize: 14)),
-                                        SizedBox(width: 10),
-                                        Text("Semana: ${operacion['semana']}",
-                                            style: TextStyle(fontSize: 14)),
-                                        SizedBox(width: 10),
-                                        Text("Tipo perforacion: ${operacion['tipo_perforacion']}",
-                                            style: TextStyle(fontSize: 14)),
-                                      ]
-                                  : [
-                                      Text("Fecha: ${operacion['fecha']}",
-                                          style: TextStyle(fontSize: 15)),
-                                      SizedBox(width: 10),
-                                      Text("Turno: ${operacion['turno']}",
-                                          style: TextStyle(fontSize: 15)),
-                                      SizedBox(width: 10),
-                                      Text("Equipo: ${operacion['equipo']}",
-                                          style: TextStyle(fontSize: 15)),
-                                      SizedBox(width: 10),
-                                      Text("Código: ${operacion['codigo']}",
-                                          style: TextStyle(fontSize: 15)),
-                                      SizedBox(width: 10),
-                                      Text("Empresa: ${operacion['empresa']}",
-                                          style: TextStyle(fontSize: 15)),
-                                      SizedBox(width: 10),
-                                      Text("Estado: ${operacion['estado']}",
-                                          style: TextStyle(fontSize: 15)),
-                                          SizedBox(width: 10),
-                                      Text("idNube: ${operacion['idNube']}",
-                                          style: TextStyle(fontSize: 14)),
-                                    ],
+                              children: _buildOperacionInfo(seccion, operacion),
                             ),
                           );
                         }).toList(),
@@ -320,6 +323,83 @@ class _SeccionesScreenState extends State<SeccionesScreen> {
     );
   }
 
+  List<Widget> _buildOperacionInfo(String seccion, Map<String, dynamic> operacion) {
+    if (seccion == "EXPLOSIVOS") {
+      return [
+        Text("Fecha: ${operacion['fecha']}", style: TextStyle(fontSize: 14)),
+        SizedBox(width: 10),
+        Text("Turno: ${operacion['turno']}", style: TextStyle(fontSize: 14)),
+        SizedBox(width: 10),
+        Text("Taladro: ${operacion['taladro']}", style: TextStyle(fontSize: 14)),
+        SizedBox(width: 10),
+        Text("Zona: ${operacion['zona']}", style: TextStyle(fontSize: 14)),
+        SizedBox(width: 10),
+        Text("Labor: ${operacion['labor']}", style: TextStyle(fontSize: 14)),
+        SizedBox(width: 10),
+        Text("Estado: ${operacion['estado']}", style: TextStyle(fontSize: 14)),
+      ];
+    } else if (seccion == "MEDICIONES TAL. HORIZONTAL") {
+      return [
+        Text("Mes: ${operacion['mes']}", style: TextStyle(fontSize: 14)),
+        SizedBox(width: 10),
+        Text("Semana: ${operacion['semana']}", style: TextStyle(fontSize: 14)),
+        SizedBox(width: 10),
+        Text("Tipo perforacion: ${operacion['tipo_perforacion']}", style: TextStyle(fontSize: 14)),
+      ];
+    } else if (seccion == "ACEROS DE PERFORACIÓN") {
+      final esIngreso = operacion['tipo_acero_registro'] == 'INGRESO';
+      return [
+        Container(
+          padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          decoration: BoxDecoration(
+            color: esIngreso ? Colors.green[50] : Colors.orange[50],
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: esIngreso ? Colors.green[300]! : Colors.orange[300]!,
+              width: 1,
+            ),
+          ),
+          child: Text(
+            esIngreso ? 'INGRESO' : 'SALIDA',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              color: esIngreso ? Colors.green[800] : Colors.orange[800],
+            ),
+          ),
+        ),
+        SizedBox(width: 10),
+        Text("Fecha: ${operacion['fecha']}", style: TextStyle(fontSize: 14)),
+        SizedBox(width: 10),
+        Text("Turno: ${operacion['turno']}", style: TextStyle(fontSize: 14)),
+        SizedBox(width: 10),
+        Text("Tipo: ${operacion['tipo_acero']}", style: TextStyle(fontSize: 14)),
+        SizedBox(width: 10),
+        Text("Cant: ${operacion['cantidad']}", style: TextStyle(fontSize: 14)),
+        if (!esIngreso) ...[
+          SizedBox(width: 10),
+          Text("Equipo: ${operacion['equipo']}", style: TextStyle(fontSize: 14)),
+        ],
+      ];
+    } else {
+      return [
+        Text("Fecha: ${operacion['fecha']}", style: TextStyle(fontSize: 15)),
+        SizedBox(width: 10),
+        Text("Turno: ${operacion['turno']}", style: TextStyle(fontSize: 15)),
+        SizedBox(width: 10),
+        Text("Equipo: ${operacion['equipo']}", style: TextStyle(fontSize: 15)),
+        SizedBox(width: 10),
+        Text("Código: ${operacion['codigo']}", style: TextStyle(fontSize: 15)),
+        SizedBox(width: 10),
+        Text("Empresa: ${operacion['empresa']}", style: TextStyle(fontSize: 15)),
+        SizedBox(width: 10),
+        Text("Estado: ${operacion['estado']}", style: TextStyle(fontSize: 15)),
+        SizedBox(width: 10),
+        Text("idNube: ${operacion['idNube']}", style: TextStyle(fontSize: 14)),
+      ];
+    }
+  }
+
   Future<void> ejecutarEnviosSecuencialmente(BuildContext dialogContext) async {
     try {
       bool algunEnvioRealizado = false;
@@ -343,6 +423,12 @@ class _SeccionesScreenState extends State<SeccionesScreen> {
         mensajeResultado += '- Datos de Sostenimiento enviados\n';
       }
 
+      if (idscarguio.isNotEmpty) {
+        await _exportSelectedItemsCarguio();
+        algunEnvioRealizado = true;
+        mensajeResultado += '- Datos de Carguio enviados\n';
+      }
+
       if (idsExplosivos.isNotEmpty) {
         await _exportSelectedItemsExplo();
         algunEnvioRealizado = true;
@@ -353,6 +439,12 @@ class _SeccionesScreenState extends State<SeccionesScreen> {
         await _exportSelectedItemsMedicionHorizontal();
         algunEnvioRealizado = true;
         mensajeResultado += '- Datos de Mediciones horizontal enviados\n';
+      }
+
+      if (idsIngresosAceros.isNotEmpty || idsSalidasAceros.isNotEmpty) {
+        await _exportSelectedItemsAceros();
+        algunEnvioRealizado = true;
+        mensajeResultado += '- Datos de Aceros enviados\n';
       }
 
       // Cerrar el diálogo padre
@@ -1072,50 +1164,6 @@ Future<void> _exportSelectedItemsSostenimiento() async {
     await _enviarDatosALaNubeExplo(jsonData);
   }
 
-  Future<void> _showConfirmationDialogexplo(
-    List<Map<String, dynamic>> jsonData,
-  ) async {
-    String prettyJson = const JsonEncoder.withIndent('  ').convert(jsonData);
-
-    bool? confirmado = await showDialog<bool>(
-      context: context,
-      barrierDismissible: false,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Confirmar envío'),
-          content: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                    '¿Estás seguro que deseas enviar los siguientes datos a la nube?'),
-                const SizedBox(height: 16),
-                Text(
-                  'Operaciones a enviar: ${jsonData.length}',
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('Cancelar'),
-            ),
-            ElevatedButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              child: const Text('Enviar'),
-            ),
-          ],
-        );
-      },
-    );
-
-    if (confirmado == true) {
-      await _enviarDatosALaNubeExplo(jsonData);
-    }
-  }
-
   Future<void> _enviarDatosALaNubeExplo(
       List<Map<String, dynamic>> jsonData) async {
     final operacionService = ExploracionService();
@@ -1223,7 +1271,14 @@ Future<void> _actualizarDatosEnLaNubeMEdicionHorizontal(List<Map<String, dynamic
     allSuccess = false;
     errores.add('Error inesperado: ${e.toString()}');
   }
-
+ if (allSuccess) {
+    Navigator.of(context).pop(); // ✅ se cierra solo si fue exitoso
+  } else {
+    Navigator.of(context).pop(); // ❌ opcional: si quieres cerrarlo igual
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(errores.join("\n"))),
+    );
+  }
 }
 
 
@@ -1278,7 +1333,14 @@ Future<void> _enviarDatosALaNubeMEdicionHorizontal(List<Map<String, dynamic>> js
     allSuccess = false;
     errores.add("Error inesperado: ${e.toString()}");
   }
-
+ if (allSuccess) {
+    Navigator.of(context).pop(); // ✅ cierra solo si todo correcto
+  } else {
+    Navigator.of(context).pop(); // ❌ opcional: si quieres cerrarlo igual
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(errores.join("\n"))),
+    );
+  }
 }
 
 
@@ -1287,5 +1349,297 @@ Future<void> _enviarDatosALaNubeMEdicionHorizontal(List<Map<String, dynamic>> js
     DatabaseHelper_Mina1 dbHelper = DatabaseHelper_Mina1();
     return await dbHelper.actualizarEnvioMedicionesHorizontal([medicionId]);
   }
+
+
+//ACEROSSSSSSS---------------------------------------------------------------------------------------------------------
+
+Future<void> _exportSelectedItemsAceros() async {
+  if (idsIngresosAceros.isEmpty && idsSalidasAceros.isEmpty) return;
+
+  final dbHelper = DatabaseHelper_Mina1();
+  final List<Map<String, dynamic>> ingresosParaEnviar = [];
+  final List<Map<String, dynamic>> salidasParaEnviar = [];
+
+  // Procesar ingresos de aceros
+  for (final id in idsIngresosAceros) {
+    final ingreso = await dbHelper.obtenerIngresoPorId(id);
+    if (ingreso != null) {
+      ingresosParaEnviar.add(ingreso);
+    }
+  }
+
+  // Procesar salidas de aceros
+  for (final id in idsSalidasAceros) {
+    final salida = await dbHelper.obtenerSalidaPorId(id);
+    if (salida != null) {
+      salidasParaEnviar.add(salida);
+    }
+  }
+
+  // Saltamos el diálogo y vamos directo a los envíos
+  if (ingresosParaEnviar.isNotEmpty) {
+    await _enviarIngresosAcerosALaNube(ingresosParaEnviar);
+  }
+  if (salidasParaEnviar.isNotEmpty) {
+    await _enviarSalidasAcerosALaNube(salidasParaEnviar);
+  }
+}
+
+Future<void> _enviarIngresosAcerosALaNube(List<Map<String, dynamic>> ingresosData) async {
+  final acerosService = AcerosService();
+  bool allSuccess = true;
+  List<String> errores = [];
+
+  showDialog(
+    context: context,
+    barrierDismissible: false,
+    builder: (context) => const Center(child: CircularProgressIndicator()),
+  );
+
+  try {
+    // Enviar cada ingreso individualmente
+    for (var ingreso in ingresosData) {
+      try {
+        bool success = await acerosService.enviarIngresos(ingreso);
+        
+        if (success) {
+          // Marcar como enviado si fue exitoso
+          await _actualizarEnvioIngresoAcero(ingreso['id']);
+        } else {
+          allSuccess = false;
+          errores.add("Error al enviar ingreso ID: ${ingreso['id']}");
+        }
+      } catch (e) {
+        allSuccess = false;
+        errores.add("Error procesando ingreso ID: ${ingreso['id']} - ${e.toString()}");
+      }
+    }
+
+  } catch (e) {
+    allSuccess = false;
+    errores.add("Error inesperado al enviar ingresos: ${e.toString()}");
+  }
+
+  Navigator.of(context).pop();
+
+}
+
+Future<void> _enviarSalidasAcerosALaNube(List<Map<String, dynamic>> salidasData) async {
+  final acerosService = AcerosService();
+  bool allSuccess = true;
+  List<String> errores = [];
+
+  showDialog(
+    context: context,
+    barrierDismissible: false,
+    builder: (context) => const Center(child: CircularProgressIndicator()),
+  );
+
+  try {
+    // Enviar cada salida individualmente
+    for (var salida in salidasData) {
+      try {
+        bool success = await acerosService.enviarSalidas(salida);
+        
+        if (success) {
+          // Marcar como enviado si fue exitoso
+          await _actualizarEnvioSalidaAcero(salida['id']);
+        } else {
+          allSuccess = false;
+          errores.add("Error al enviar salida ID: ${salida['id']}");
+        }
+      } catch (e) {
+        allSuccess = false;
+        errores.add("Error procesando salida ID: ${salida['id']} - ${e.toString()}");
+      }
+    }
+
+  } catch (e) {
+    allSuccess = false;
+    errores.add("Error inesperado al enviar salidas: ${e.toString()}");
+  }
+
+  Navigator.of(context).pop();
+  
+
+}
+
+Future<int> _actualizarEnvioIngresoAcero(int ingresoId) async {
+  DatabaseHelper_Mina1 dbHelper = DatabaseHelper_Mina1();
+  return await dbHelper.actualizarEnvioIngresos([ingresoId]);
+}
+
+Future<int> _actualizarEnvioSalidaAcero(int salidaId) async {
+  DatabaseHelper_Mina1 dbHelper = DatabaseHelper_Mina1();
+  return await dbHelper.actualizarEnvioSalidas([salidaId]);
+}
+
+//CARGUIOOO----------------------------------------------------------------
+Future<void> _exportSelectedItemsCarguio() async {
+  if (idscarguio.isEmpty) return;
+
+  DatabaseHelper_Mina1 dbHelper = DatabaseHelper_Mina1();
+  List<Map<String, dynamic>> jsonDataParaCrear = [];
+  List<Map<String, dynamic>> jsonDataParaActualizar = [];
+
+  for (var operacionId in idscarguio) {
+    // 🔹 Obtener datos de la operación principal
+    var operacion = operacionDatacarguio.firstWhere((op) => op['id'] == operacionId);
+
+    // 🔹 Obtener datos relacionados
+    List<Map<String, dynamic>> estados = await dbHelper.getEstadosByOperacionId(operacionId);
+    List<Map<String, dynamic>> horometros = await dbHelper.getHorometrosByOperacion(operacionId);
+    List<Map<String, dynamic>> carguios = await dbHelper.getCarguiosByOperacionId(operacionId);
+
+    // 🟩 Operación sin ID (para POST)
+    Map<String, dynamic> operacionSinId = {
+      "turno": operacion['turno'],
+      "equipo": operacion['equipo'],
+      "codigo": operacion['codigo'],
+      "empresa": operacion['empresa'],
+      "fecha": operacion['fecha'],
+      "tipo_operacion": operacion['tipo_operacion'],
+      "estado": operacion['estado']
+    };
+
+    // 🟦 Limpiar estados
+    List<Map<String, dynamic>> estadosLimpios = estados.map((estado) {
+      return {
+        "numero": estado['numero'],
+        "estado": estado['estado'],
+        "codigo": estado['codigo'],
+        "hora_inicio": estado['hora_inicio'],
+        "hora_final": estado['hora_final']
+      };
+    }).toList();
+
+    // 🟨 Limpiar horómetros
+    List<Map<String, dynamic>> horometrosLimpios = horometros.map((h) {
+      return {
+        "nombre": h['nombre'],
+        "inicial": h['inicial'],
+        "final": h['final']
+      };
+    }).toList();
+
+    // 🟥 Limpiar carguíos
+    List<Map<String, dynamic>> carguiosLimpios = carguios.map((carguio) {
+      return {
+        "nivel": carguio['nivel'],
+        "labor_origen": carguio['labor_origen'],
+        "material": carguio['material'],
+        "labor_destino": carguio['labor_destino'],
+        "num_cucharas": carguio['num_cucharas'],
+        "observaciones": carguio['observaciones'] ?? ""
+      };
+    }).toList();
+
+    // 🧩 Construir estructura final
+    Map<String, dynamic> operacionCompleta = {
+      "local_id": operacionId,
+      "operacion": operacionSinId,
+      "estados": estadosLimpios,
+      "horometros": horometrosLimpios,
+      "carguios": carguiosLimpios,
+    };
+
+    // ✅ Decidir si crear o actualizar
+    if (operacion['idNube'] == null) {
+      // Si no tiene idNube → crear nuevo
+      jsonDataParaCrear.add(operacionCompleta);
+    } else {
+      // Si tiene idNube → actualizar existente
+      operacionCompleta['operacion']['id'] = operacion['idNube'];
+      jsonDataParaActualizar.add(operacionCompleta);
+    }
+  }
+
+  await _enviarDatosALaNubeCarguio(jsonDataParaCrear, jsonDataParaActualizar);
+}
+
+Future<void> _enviarDatosALaNubeCarguio(
+  List<Map<String, dynamic>> jsonDataParaCrear,
+  List<Map<String, dynamic>> jsonDataParaActualizar,
+) async {
+  final carguioService = CarguioService();
+  bool allSuccess = true;
+
+  showDialog(
+    context: context,
+    barrierDismissible: false,
+    builder: (context) => const Center(child: CircularProgressIndicator()),
+  );
+
+  try {
+    // 🔹 1. Crear nuevos registros
+    for (var operacion in jsonDataParaCrear) {
+      int localId = operacion['local_id'];
+      print('Creando en la nube operación de CARGUÍO con ID local: $localId');
+
+      final operacionSinLocalId = Map<String, dynamic>.from(operacion);
+      operacionSinLocalId.remove('local_id');
+
+      final idsNube = await carguioService.enviarCarguio(operacionSinLocalId);
+
+      if (idsNube != null && idsNube.isNotEmpty) {
+        final idNube = idsNube.first;
+        await _actualizarIdNubeOperacion(localId, idNube);
+
+        // Si está cerrado, marcar como enviado completo
+        if (operacion['operacion']['estado'] == 'cerrado') {
+          await _actualizarEnvio(localId);
+        } else {
+          await _actualizarEnvioParciales(localId);
+        }
+
+        print('✅ Operación de carguío local $localId creada con ID nube $idNube');
+      } else {
+        allSuccess = false;
+        print('❌ Error al crear operación de carguío con ID local: $localId');
+      }
+    }
+
+    // 🔹 2. Actualizar registros existentes
+    for (var operacion in jsonDataParaActualizar) {
+      int localId = operacion['local_id'];
+      print('Actualizando en la nube operación de CARGUÍO con ID local: $localId');
+
+      final operacionSinLocalId = Map<String, dynamic>.from(operacion);
+      operacionSinLocalId.remove('local_id');
+
+      final success = await carguioService.actualizarCarguio(operacionSinLocalId);
+
+      if (success) {
+        if (operacion['operacion']['estado'] == 'cerrado') {
+          await _actualizarEnvio(localId);
+        } else {
+          await _actualizarEnvioParciales(localId);
+        }
+        print('✅ Operación de carguío local $localId actualizada correctamente');
+      } else {
+        allSuccess = false;
+        print('❌ Error al actualizar operación de carguío local $localId');
+      }
+    }
+  } catch (e) {
+    allSuccess = false;
+    print('⚠️ Error durante el envío de carguío: $e');
+  }
+
+  if (mounted) {
+    Navigator.of(context).pop();
+
+    if (allSuccess) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Datos de Carguío enviados exitosamente')),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Algunos datos de Carguío fallaron al enviarse')),
+      );
+    }
+  }
+}
+
 
 }

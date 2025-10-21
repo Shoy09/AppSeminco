@@ -1,21 +1,32 @@
 import 'package:app_seminco/components/reportes/CompactReportButton%20.dart';
-import 'package:app_seminco/mina%202/screens/Mediciones/horizontal/select_tipo_pro_eje.dart';
-import 'package:app_seminco/mina%202/screens/Mediciones/horizontal/horizontal.dart';
-import 'package:app_seminco/mina%202/screens/Mediciones/largo/largo.dart';
-import 'package:app_seminco/mina%202/screens/Mediciones/prueba.dart';
+import 'package:app_seminco/mina%201/screens/Aceros/StockPage.dart';
+import 'package:app_seminco/mina%201/screens/Aceros/entrada_page.dart';
+import 'package:app_seminco/mina%201/screens/Aceros/salida_page.dart';
 import 'package:flutter/material.dart';
-import 'package:app_seminco/mina%202/screens/Mediciones/inicio.dart';
 
-class Selecc_Tipo_explo extends StatelessWidget {
-  const Selecc_Tipo_explo({super.key});
+class SeleccEntradaSalida extends StatelessWidget {
+  const SeleccEntradaSalida({super.key});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Operaciones Mineras'),
-        backgroundColor: Color(0xFF21899C),
+        title: const Text('Entrada / Salida'),
+        backgroundColor: const Color(0xFF21899C),
         centerTitle: true,
+        actions: [
+          TextButton.icon(
+            onPressed: () {
+              // Aquí navegas a tu pantalla de stock
+              Navigator.push(context, MaterialPageRoute(builder: (context) => const StockPage()));
+            },
+            icon: const Icon(Icons.inventory, color: Colors.white),
+            label: const Text(
+              "Stock",
+              style: TextStyle(color: Colors.white),
+            ),
+          ),
+        ],
       ),
       body: Center(
         child: Padding(
@@ -23,45 +34,43 @@ class Selecc_Tipo_explo extends StatelessWidget {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // Botón 1
+              // Botón Entrada
               SizedBox(
-                width: MediaQuery.of(context).size.width * 0.4, // 40% del ancho
-                height: MediaQuery.of(context).size.height * 0.35, // 35% del alto
+                width: MediaQuery.of(context).size.width * 0.4,
+                height: MediaQuery.of(context).size.height * 0.35,
                 child: Padding(
                   padding: const EdgeInsets.all(8.0),
                   child: ExpandedReportButton(
-                    title: 'PERFORACIÓN\nTALADROS LARGOS',
-                    imagePath: 'assets/images/perforacion_taladros.png',
+                    title: 'ENTRADA',
                     backgroundColor: const Color(0xFF21899C),
                     onPressed: () {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => RegistroExplosivoPagelargo(),
+                          builder: (context) => const EntradaPage(),
                         ),
                       );
                     },
                   ),
                 ),
               ),
-              
+
               const SizedBox(width: 20),
-              
-              // Botón 2
+
+              // Botón Salida
               SizedBox(
-                width: MediaQuery.of(context).size.width * 0.4, // 40% del ancho
-                height: MediaQuery.of(context).size.height * 0.35, // 35% del alto
+                width: MediaQuery.of(context).size.width * 0.4,
+                height: MediaQuery.of(context).size.height * 0.35,
                 child: Padding(
                   padding: const EdgeInsets.all(8.0),
                   child: ExpandedReportButton(
-                    title: 'PERFORACIÓN\nHORIZONTAL',
-                    imagePath: 'assets/images/perfo_horizontal.png',
+                    title: 'SALIDA',
                     backgroundColor: const Color(0xFF4CAF50),
                     onPressed: () {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => Selecc_Tipo_pro_eje(),
+                          builder: (context) => const SalidaPage(),
                         ),
                       );
                     },

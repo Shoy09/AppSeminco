@@ -24,7 +24,7 @@ class DatabaseHelper_Mina1 {
   static Database? _database;
   static String? _currentUserDni;
   static bool _isInitialized = false;
-  static const int _currentDbVersion = 8;
+  static const int _currentDbVersion = 12;
 
   DatabaseHelper_Mina1._internal() {
     // Inicialización única para evitar múltiples llamadas
@@ -262,17 +262,20 @@ class DatabaseHelper_Mina1 {
       ''');
 
     // 🔹 Carguío
-    await db.execute('''
-        CREATE TABLE Carguio(
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          operacion_id INTEGER,
-          tipo_material TEXT,
-          volumen REAL,
-          maquinaria TEXT,
-          operador TEXT,
-          FOREIGN KEY(operacion_id) REFERENCES Operacion(id) ON DELETE CASCADE
-        )
-      ''');
+await db.execute('''
+  CREATE TABLE Carguio(
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    operacion_id INTEGER,
+    nivel TEXT,
+    labor_origen TEXT,
+    material TEXT,
+    labor_destino TEXT,
+    num_cucharas INTEGER,
+    observaciones TEXT,
+    FOREIGN KEY(operacion_id) REFERENCES Operacion(id) ON DELETE CASCADE
+  )
+''');
+
 
     // 🔹 Acarreo
     await db.execute('''
@@ -744,6 +747,68 @@ await db.execute('''
   )
 ''');
 
+// Tabla JEFE_DE_GUARDIA_Acero
+await db.execute('''
+  CREATE TABLE IF NOT EXISTS JEFE_DE_GUARDIA_Acero (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    jefe_de_guardia TEXT NOT NULL,
+    activo INTEGER NOT NULL DEFAULT 1,
+    turno TEXT
+  )
+''');
+
+// Tabla procesos_acero
+await db.execute('''
+  CREATE TABLE IF NOT EXISTS procesos_acero (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    proceso TEXT NOT NULL,
+    tipo_acero TEXT NOT NULL,
+    descripcion TEXT,
+    precio REAL NOT NULL
+  )
+''');
+
+// Tabla OPERADOR_Acero
+await db.execute('''
+  CREATE TABLE IF NOT EXISTS OPERADOR_Acero (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    operador TEXT NOT NULL,
+    activo INTEGER NOT NULL DEFAULT 1,
+    turno TEXT
+  )
+''');
+
+await db.execute('''
+  CREATE TABLE IF NOT EXISTS Ingreso_Aceros (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    fecha TEXT NOT NULL,
+    turno TEXT NOT NULL,
+    mes TEXT NOT NULL,
+    proceso TEXT NOT NULL,
+    tipo_acero TEXT NOT NULL,
+    descripcion TEXT,
+    cantidad REAL NOT NULL,
+    envio INTEGER NOT NULL DEFAULT 0
+  )
+''');
+
+await db.execute('''
+  CREATE TABLE IF NOT EXISTS Salidas_Aceros (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    fecha TEXT NOT NULL,
+    turno TEXT NOT NULL,
+    mes TEXT NOT NULL,
+    proceso TEXT NOT NULL,
+    equipo TEXT NOT NULL,
+    codigo_equipo TEXT,
+    operador TEXT NOT NULL,
+    jefe_guardia TEXT,
+    tipo_acero TEXT NOT NULL,
+    descripcion TEXT,
+    cantidad REAL NOT NULL,
+    envio INTEGER NOT NULL DEFAULT 0
+  )
+''');
 
     print(
         'Base de datos y tablas creadas: FormatoPlanMineral, Operacion, PerforacionTaladroLargo, Slot, Taladro, Estado, Usuario');
@@ -847,7 +912,114 @@ if (oldVersion < 8) {
     // 4. Renombrar la tabla temporal
     await db.execute('ALTER TABLE Usuario_temp RENAME TO Usuario');
   }
+}if (oldVersion < 9) {
+  // Crear tabla JEFE_DE_GUARDIA_Acero si no existe
+  if (!await _tablaExiste(db, 'JEFE_DE_GUARDIA_Acero')) {
+    await db.execute('''
+      CREATE TABLE JEFE_DE_GUARDIA_Acero (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        jefe_de_guardia TEXT NOT NULL,
+        activo INTEGER NOT NULL DEFAULT 1,
+        turno TEXT
+      )
+    ''');
+  }
+
+  // Crear tabla procesos_acero si no existe
+  if (!await _tablaExiste(db, 'procesos_acero')) {
+    await db.execute('''
+      CREATE TABLE procesos_acero (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        proceso TEXT NOT NULL,
+        tipo_acero TEXT NOT NULL,
+        descripcion TEXT,
+        precio REAL NOT NULL
+      )
+    ''');
+  }
+
+  // Crear tabla OPERADOR_Acero si no existe
+  if (!await _tablaExiste(db, 'OPERADOR_Acero')) {
+    await db.execute('''
+      CREATE TABLE OPERADOR_Acero (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        operador TEXT NOT NULL,
+        activo INTEGER NOT NULL DEFAULT 1,
+        turno TEXT
+      )
+    ''');
+  }
+}if (oldVersion < 10) {
+  // Crear tabla Ingreso_Aceros si no existe
+  if (!await _tablaExiste(db, 'Ingreso_Aceros')) {
+    await db.execute('''
+      CREATE TABLE Ingreso_Aceros (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        fecha TEXT NOT NULL,
+        turno TEXT NOT NULL,
+        mes TEXT NOT NULL,
+        proceso TEXT NOT NULL,
+        tipo_acero TEXT NOT NULL,
+        descripcion TEXT,
+        cantidad REAL NOT NULL
+      )
+    ''');
+  }
+
+  if (!await _tablaExiste(db, 'Salidas_Aceros')) {
+    await db.execute('''
+      CREATE TABLE Salidas_Aceros (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        fecha TEXT NOT NULL,
+        turno TEXT NOT NULL,
+        mes TEXT NOT NULL,
+        proceso TEXT NOT NULL,
+        equipo TEXT NOT NULL,
+        codigo_equipo TEXT,
+        operador TEXT NOT NULL,
+        jefe_guardia TEXT,
+        tipo_acero TEXT NOT NULL,
+        descripcion TEXT,
+        cantidad REAL NOT NULL
+      )
+    ''');
+  }
+}if (oldVersion < 11) {
+  // Agregar columna envio a Ingreso_Aceros si no existe
+  if (!await _columnaExiste(db, 'Ingreso_Aceros', 'envio')) {
+    await db.execute('''
+      ALTER TABLE Ingreso_Aceros ADD COLUMN envio INTEGER NOT NULL DEFAULT 0
+    ''');
+  }
+
+  // Agregar columna envio a Salidas_Aceros si no existe
+  if (!await _columnaExiste(db, 'Salidas_Aceros', 'envio')) {
+    await db.execute('''
+      ALTER TABLE Salidas_Aceros ADD COLUMN envio INTEGER NOT NULL DEFAULT 0
+    ''');
+  }
+}if (oldVersion < 12) {
+  // Actualizar tabla Carguio
+  if (await _tablaExiste(db, 'Carguio')) {
+    await db.execute('DROP TABLE IF EXISTS Carguio');
+  }
+
+  await db.execute('''
+    CREATE TABLE Carguio(
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      operacion_id INTEGER,
+      nivel TEXT,
+      labor_origen TEXT,
+      material TEXT,
+      labor_destino TEXT,
+      num_cucharas INTEGER,
+      observaciones TEXT,
+      FOREIGN KEY(operacion_id) REFERENCES Operacion(id) ON DELETE CASCADE
+    )
+  ''');
 }
+
+
 
 }
 
@@ -1027,6 +1199,33 @@ Future<bool> _tablaExiste(Database db, String tabla) async {
     return await db.insert('PerforacionHorizontal', datos);
   }
 
+  Future<int> insertarCarguio({
+  required int operacionId,        // ID de la operación relacionada
+  required String nivel,           // Nivel
+  required String laborOrigen,     // Labor origen
+  required String material,        // Material (M/D/O)
+  required String laborDestino,    // Labor destino
+  required int numCucharas,        // Número de cucharas
+  required String observaciones,   // Observaciones
+}) async {
+  final Database db = await DatabaseHelper_Mina1().database;
+
+  // Crear mapa con los datos a insertar
+  Map<String, dynamic> datos = {
+    'operacion_id': operacionId,
+    'nivel': nivel,
+    'labor_origen': laborOrigen,
+    'material': material,
+    'labor_destino': laborDestino,
+    'num_cucharas': numCucharas,
+    'observaciones': observaciones,
+  };
+
+  // Insertar en la tabla Carguio y devolver el ID generado
+  return await db.insert('Carguio', datos);
+}
+
+
   Future<int> insertarPerforacionSostenimiento({
     required String zona,
     required String tipoLabor,
@@ -1068,6 +1267,35 @@ Future<bool> _tablaExiste(Database db, String tabla) async {
 
     return perforacionesRaw.map((p) => Map<String, dynamic>.from(p)).toList();
   }
+
+  Future<List<Map<String, dynamic>>> getCarguiosByOperacionId(int operacionId) async {
+  final db = await database;
+  return await db.query(
+    'Carguio',
+    where: 'operacion_id = ?',
+    whereArgs: [operacionId],
+  );
+}
+
+  Future<List<Map<String, dynamic>>> getCarguioPorOperacion(int operacionId) async {
+  final db = await database;
+
+  final List<Map<String, dynamic>> carguioRaw = await db.rawQuery('''
+    SELECT 
+      id, 
+      nivel, 
+      labor_origen, 
+      material, 
+      labor_destino, 
+      num_cucharas, 
+      observaciones
+    FROM Carguio
+    WHERE operacion_id = ?
+  ''', [operacionId]);
+
+  return carguioRaw.map((c) => Map<String, dynamic>.from(c)).toList();
+}
+
 
   Future<List<Map<String, dynamic>>> getPerforacionesTaladroSostenimiento(
       int operacionId) async {
@@ -2965,5 +3193,245 @@ Future<List<Map<String, dynamic>>> getAllPdfs() async {
   return result;
 }
 
+//ACEROSSSSSSSSSSSSSSSSSSS_--------------------------------------------------
+Future<List<Map<String, dynamic>>> getProcesosAcero() async {
+  final db = await database;
+
+  final List<Map<String, dynamic>> procesosRaw = await db.rawQuery('''
+    SELECT id, proceso, tipo_acero, descripcion, precio
+    FROM procesos_acero
+  ''');
+
+  return procesosRaw.map((p) => Map<String, dynamic>.from(p)).toList();
+}
+
+Future<List<Map<String, dynamic>>> getJefesDeGuardiaAcero() async {
+  final db = await database;
+
+  final List<Map<String, dynamic>> jefesRaw = await db.rawQuery('''
+    SELECT id, jefe_de_guardia, activo, turno
+    FROM JEFE_DE_GUARDIA_Acero
+  ''');
+
+  return jefesRaw.map((j) => Map<String, dynamic>.from(j)).toList();
+}
+
+Future<List<Map<String, dynamic>>> getOperadoresAcero() async {
+  final db = await database;
+
+  final List<Map<String, dynamic>> operadoresRaw = await db.rawQuery('''
+    SELECT id, operador, activo, turno
+    FROM OPERADOR_Acero
+  ''');
+
+  return operadoresRaw.map((o) => Map<String, dynamic>.from(o)).toList();
+}
+
+
+// Insertar en Ingreso_Aceros
+Future<int> createIngresoAceros(
+    String fecha,
+    String turno,
+    String mes,
+    String proceso,
+    String tipoAcero,
+    String descripcion,
+    double cantidad) async {
+  final db = await database;
+
+  return await db.insert(
+    'Ingreso_Aceros',
+    {
+      'fecha': fecha,
+      'turno': turno,
+      'mes': mes,
+      'proceso': proceso,
+      'tipo_acero': tipoAcero,
+      'descripcion': descripcion,
+      'cantidad': cantidad,
+    },
+    conflictAlgorithm: ConflictAlgorithm.replace,
+  );
+}
+
+Future<int> createSalidaAceros(
+    String fecha,
+    String turno,
+    String mes,
+    String proceso,
+    String equipo,
+    String codigoEquipo,
+    String operador,
+    String jefeGuardia,
+    String tipoAcero,
+    String descripcion,
+    double cantidad) async {
+  final db = await database;
+
+  return await db.insert(
+    'Salidas_Aceros',
+    {
+      'fecha': fecha,
+      'turno': turno,
+      'mes': mes,
+      'proceso': proceso,
+      'equipo': equipo,
+      'codigo_equipo': codigoEquipo,
+      'operador': operador,
+      'jefe_guardia': jefeGuardia,
+      'tipo_acero': tipoAcero,
+      'descripcion': descripcion,
+      'cantidad': cantidad,
+    },
+    conflictAlgorithm: ConflictAlgorithm.replace,
+  );
+}
+
+// Obtener todos los ingresos
+Future<List<Map<String, dynamic>>> getIngresosAceros() async {
+  final db = await database;
+  return await db.query(
+    'Ingreso_Aceros',
+    orderBy: 'id DESC',
+  );
+}
+
+// Obtener todas las salidas
+Future<List<Map<String, dynamic>>> getSalidasAceros() async {
+  final db = await database;
+  return await db.query(
+    'Salidas_Aceros',
+    orderBy: 'id DESC',
+  );
+}
+
+// Eliminar un registro de Ingreso_Aceros por id
+// Eliminar uno o varios ingresos
+Future<int> deleteIngresoAceros(List<int> ids) async {
+  final db = await database;
+  if (ids.isEmpty) return 0;
+
+  final whereClause = 'id IN (${List.filled(ids.length, '?').join(',')})';
+
+  return await db.delete(
+    'Ingreso_Aceros',
+    where: whereClause,
+    whereArgs: ids,
+  );
+}
+
+// Eliminar uno o varios salidas
+Future<int> deleteSalidaAceros(List<int> ids) async {
+  final db = await database;
+  if (ids.isEmpty) return 0;
+
+  final whereClause = 'id IN (${List.filled(ids.length, '?').join(',')})';
+
+  return await db.delete(
+    'Salidas_Aceros',
+    where: whereClause,
+    whereArgs: ids,
+  );
+}
+
+Future<List<Map<String, dynamic>>> getIngresosPendientes() async {
+  final db = await database;
+  return await db.query(
+    'Ingreso_Aceros',
+    where: 'envio = ?',
+    whereArgs: [0],
+    orderBy: 'id DESC',
+  );
+}
+
+Future<List<Map<String, dynamic>>> getSalidasPendientes() async {
+  final db = await database;
+  return await db.query(
+    'Salidas_Aceros',
+    where: 'envio = ?',
+    whereArgs: [0],
+    orderBy: 'id DESC',
+  );
+}
+
+// Actualizar campo envio a 1 en Ingreso_Aceros
+Future<int> actualizarEnvioIngresos(List<int> ids) async {
+  final db = await database;
+  if (ids.isEmpty) return 0;
+
+  final idPlaceholders = List.filled(ids.length, '?').join(', ');
+
+  return await db.update(
+    'Ingreso_Aceros',
+    {'envio': 1},
+    where: 'id IN ($idPlaceholders)',
+    whereArgs: ids,
+  );
+}
+
+// Actualizar campo envio a 1 en Salidas_Aceros
+Future<int> actualizarEnvioSalidas(List<int> ids) async {
+  final db = await database;
+  if (ids.isEmpty) return 0;
+
+  final idPlaceholders = List.filled(ids.length, '?').join(', ');
+
+  return await db.update(
+    'Salidas_Aceros',
+    {'envio': 1},
+    where: 'id IN ($idPlaceholders)',
+    whereArgs: ids,
+  );
+}
+
+// Obtener un ingreso por ID
+Future<Map<String, dynamic>?> obtenerIngresoPorId(int id) async {
+  final Database db = await database;
+
+  final List<Map<String, dynamic>> ingresos = await db.query(
+    'Ingreso_Aceros',
+    where: 'id = ?',
+    whereArgs: [id],
+  );
+
+  if (ingresos.isEmpty) return null;
+
+  return ingresos.first;
+}
+
+// Obtener una salida por ID
+Future<Map<String, dynamic>?> obtenerSalidaPorId(int id) async {
+  final Database db = await database;
+
+  final List<Map<String, dynamic>> salidas = await db.query(
+    'Salidas_Aceros',
+    where: 'id = ?',
+    whereArgs: [id],
+  );
+
+  if (salidas.isEmpty) return null;
+
+  return salidas.first;
+}
+
+Future<int> deleteIngresoAceros2(int id) async {
+  final db = await database;
+  return await db.delete(
+    'Ingreso_Aceros',
+    where: 'id = ?',
+    whereArgs: [id],
+  );
+}
+
+// Eliminar un registro de Salidas_Aceros por id
+Future<int> deleteSalidaAceros2(int id) async {
+  final db = await database;
+  return await db.delete(
+    'Salidas_Aceros',
+    where: 'id = ?',
+    whereArgs: [id],
+  );
+}
+//CARGUIOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO-------------------------------------------------------------------
 
 }

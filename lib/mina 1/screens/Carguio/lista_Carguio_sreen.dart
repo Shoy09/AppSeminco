@@ -1,17 +1,17 @@
+import 'package:app_seminco/mina%201/screens/Carguio/FormularioCarguioScreen.dart';
+import 'package:app_seminco/mina%201/screens/Carguio/registro_Carguio_sreen.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:app_seminco/mina%201/models/Empresa.dart';
 import 'package:app_seminco/mina%201/models/Equipo.dart';
 import 'package:app_seminco/mina%201/screens/Estados/estado_perforacion_screen.dart';
-import 'package:app_seminco/mina%201/screens/horizontal/FormularioPerforacionScreen.dart';
-import 'package:app_seminco/mina%201/screens/horizontal/registro_perforacion_sreen.dart';
 import '../../../database/database_helper.dart';
 
-class ListaPerforacionHorizontalScreen extends StatefulWidget {
+class ListaCarguioScreen extends StatefulWidget {
   final String tipoOperacion; // 🔹 Parámetro recibido
   final String? rolUsuario;
 
-  const ListaPerforacionHorizontalScreen(
+  const ListaCarguioScreen(
       {Key? key, required this.tipoOperacion, this.rolUsuario})
       : super(key: key);
 
@@ -20,7 +20,7 @@ class ListaPerforacionHorizontalScreen extends StatefulWidget {
 }
 
 class _ListaPerforacionScreenState
-    extends State<ListaPerforacionHorizontalScreen> {
+    extends State<ListaCarguioScreen> {
   String? selectedTurno;
   String? selectedEquipo;
   String? selectedCodigo;
@@ -42,7 +42,7 @@ class _ListaPerforacionScreenState
       DatabaseHelper_Mina1 dbHelper = DatabaseHelper_Mina1();
       // Llamar a getPerforacionesAgrupadas y pasar el operacionId como parámetro
       List<Map<String, dynamic>> data =
-          await dbHelper.getPerforacionesTaladroHorizontal(operacionId!);
+          await dbHelper.getCarguioPorOperacion(operacionId!);
 
       // Imprimir los datos recibidos para depurar
       print('Datos recibidos en _getPerforacionData: $data');
@@ -631,7 +631,7 @@ double _parseDouble(String value) {
                                         color: Colors.blue, width: 2),
                                     borderRadius: BorderRadius.circular(16),
                                   ),
-                                  child: RegistroPerforacionScreen(
+                                  child: RegistroPerforacionCarguiocreen(
                                       onDataInserted:
                                           _refreshData, // Pasa el callback para refrescar los datos
                                       operacionId:
@@ -896,207 +896,160 @@ Future<void> _selectDate(BuildContext context) async {
   }
 }
 
-  List<DataColumn> _buildColumns() {
-    final columnNames = [
-      'N°',
-      'ZONA',
-      'TIPO LABOR',
-      'LABOR',
-      'ALA',
-      'VETA',
-      'NIVEL',
-      'TIPO PERFORACION',
-      'ACCIONES'
-    ];
+List<DataColumn> _buildColumns() {
+  final columnNames = [
+    'N°',
+    'NIVEL',
+    'LABOR ORIGEN',
+    'MATERIAL (M/D/O)',
+    'LABOR DESTINO',
+    'N° DE CUCHARAS',
+    'OBSERVACIONES',
+    'ACCIONES',
+  ];
 
-    return columnNames
-        .map((name) => DataColumn(
-              label: Container(
-                width: name == 'ACCIONES' ? 100 : 120,
-                child: Text(
-                  name,
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black,
-                  ),
-                  overflow: TextOverflow.ellipsis,
+  return columnNames
+      .map((name) => DataColumn(
+            label: Container(
+              width: name == 'ACCIONES' ? 120 : 140,
+              child: Text(
+                name,
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black,
                 ),
+                overflow: TextOverflow.ellipsis,
               ),
-            ))
-        .toList();
-  }
-
-  List<DataRow> _buildDataRows(List<Map<String, dynamic>> data) {
-    return List.generate(data.length, (index) {
-      final item = data[index];
-      final id = item['id']; // ID del registro
-
-      return DataRow(
-        cells: [
-          DataCell(
-            GestureDetector(
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => FormularioScreen(
-                      estado: estado!,
-                      idOperacion: operacionId,
-                      tipoOperacion: widget.tipoOperacion,
-                      zona: item['zona'] ?? 'N/A',
-                      tipo_labor: item['tipo_labor'] ?? 'N/A',
-                      labor: item['labor'] ?? 'N/A',
-                      veta: item['veta'] ?? 'N/A',
-                      nivel: item['nivel'] ?? 'N/A',
-                      id: id,
-                      ala: item['ala'] ?? 'N/A',
-                    ),
-                  ),
-                );
-              },
-              child: Text((index + 1).toString()),
             ),
-          ),
-          _buildInteractiveDataCell(item['zona'] ?? 'N/A', id, item),
-          _buildInteractiveDataCell(item['tipo_labor'] ?? 'N/A', id, item),
-          _buildInteractiveDataCell(item['labor'] ?? 'N/A', id, item),
-          _buildInteractiveDataCell(item['ala'] ?? 'Ninguna', id, item),
-          _buildInteractiveDataCell(item['veta'] ?? 'N/A', id, item),
-          _buildInteractiveDataCell(item['nivel'] ?? 'N/A', id, item),
-          _buildInteractiveDataCell(
-              item['tipo_perforacion'] ?? 'N/A', id, item),
-          DataCell(
-            Container(
-              width: 160,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  IconButton(
-                    icon: Image.asset(
-                      'assets/icon/ejecutado.png',
-                      width: 24,
-                      height: 24,
-                    ),
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => FormularioScreen(
-                            estado: estado!,
-                            idOperacion: operacionId,
-                            tipoOperacion: widget.tipoOperacion,
-                            id: id,
-                            zona: item['zona'] ?? 'N/A',
-                      tipo_labor: item['tipo_labor'] ?? 'N/A',
-                      labor: item['labor'] ?? 'N/A',
-                      veta: item['veta'] ?? 'N/A',
-                      nivel: item['nivel'] ?? 'N/A',
-                      ala: item['ala'] ?? 'N/A',
+          ))
+      .toList();
+}
+
+
+List<DataRow> _buildDataRows(List<Map<String, dynamic>> data) {
+  return List.generate(data.length, (index) {
+    final item = data[index];
+    final id = item['id']; // ID del registro
+
+    return DataRow(
+      cells: [
+        DataCell(Text((index + 1).toString())), // N°
+        _buildInteractiveDataCell(item['nivel'] ?? 'N/A', id, item),
+        _buildInteractiveDataCell(item['labor_origen'] ?? 'N/A', id, item),
+        _buildInteractiveDataCell(item['material'] ?? 'N/A', id, item),
+        _buildInteractiveDataCell(item['labor_destino'] ?? 'N/A', id, item),
+        _buildInteractiveDataCell(
+            (item['num_cucharas'] ?? '').toString(), id, item),
+        _buildInteractiveDataCell(item['observaciones'] ?? 'Ninguna', id, item),
+        DataCell(
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.edit, color: Colors.blue),
+                onPressed: () {
+                  // Navigator.push(
+                  //   context,
+                  //   MaterialPageRoute(
+                  //     builder: (context) => FormularioCarguioScreen(
+                  //       id: id,
+                  //       idOperacion: operacionId,
+                  //       estado: estado!,
+                  //       tipoOperacion: widget.tipoOperacion,
+                  //       nivel: item['nivel'] ?? '',
+                  //       labor_origen: item['labor_origen'] ?? '',
+                  //       material: item['material'] ?? '',
+                  //       labor_destino: item['labor_destino'] ?? '',
+                  //       num_cucharas: item['num_cucharas'] ?? 0,
+                  //       observaciones: item['observaciones'] ?? '',
+                  //     ),
+                  //   ),
+                  // );
+                },
+              ),
+              IconButton(
+                icon: const Icon(Icons.delete, color: Colors.red),
+                onPressed: () async {
+                  bool? confirmDelete = await showDialog(
+                    context: context,
+                    builder: (BuildContext context) {
+                      return AlertDialog(
+                        title: const Text('¿Está seguro de eliminar el registro?'),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.of(context).pop(false),
+                            child: const Text('No'),
                           ),
-                        ),
+                          TextButton(
+                            onPressed: () => Navigator.of(context).pop(true),
+                            child: const Text('Sí'),
+                          ),
+                        ],
                       );
                     },
-                    constraints: BoxConstraints(maxWidth: 40),
-                    padding: EdgeInsets.zero,
-                  ),
-                  IconButton(
-                    icon: Icon(Icons.edit, color: Colors.blue),
-                    onPressed: () {},
-                    constraints: BoxConstraints(maxWidth: 40),
-                    padding: EdgeInsets.zero,
-                  ),
-                  IconButton(
-                    icon: Icon(Icons.delete, color: Colors.red),
-                    onPressed: () async {
-                      bool? confirmDelete = await showDialog(
-                        context: context,
-                        builder: (BuildContext context) {
-                          return AlertDialog(
-                            title:
-                                Text('¿Está seguro de eliminar el registro?'),
-                            actions: <Widget>[
-                              TextButton(
-                                onPressed: () {
-                                  Navigator.of(context).pop(false);
-                                },
-                                child: Text('No'),
-                              ),
-                              TextButton(
-                                onPressed: () {
-                                  Navigator.of(context).pop(true);
-                                },
-                                child: Text('Sí'),
-                              ),
-                            ],
-                          );
-                        },
+                  );
+
+                  if (confirmDelete == true) {
+                    final dbHelper = DatabaseHelper_Mina1();
+                    final result = await dbHelper.delete('Carguio', id);
+
+                    if (result > 0) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                            content: Text('Registro eliminado correctamente.')),
                       );
-
-                      if (confirmDelete == true) {
-                        final dbHelper = DatabaseHelper_Mina1();
-                        final result = await dbHelper.delete(
-                            'PerforacionHorizontal', id);
-
-                        if (result > 0) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                                content:
-                                    Text('Registro eliminado correctamente.')),
-                          );
-                          _refreshData();
-                        } else {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                                content:
-                                    Text('No se pudo eliminar el registro.')),
-                          );
-                        }
-                      }
-                    },
-                    constraints: BoxConstraints(maxWidth: 40),
-                    padding: EdgeInsets.zero,
-                  ),
-                ],
+                      _refreshData();
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                            content: Text('No se pudo eliminar el registro.')),
+                      );
+                    }
+                  }
+                },
               ),
-            ),
-          ),
-        ],
-      );
-    });
-  }
-
-// Función para hacer que cada celda sea interactiva
-  DataCell _buildInteractiveDataCell(
-      String text, int id, Map<String, dynamic> item) {
-    return DataCell(
-      GestureDetector(
-        onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => FormularioScreen(
-                estado: estado!,
-                tipoOperacion: widget.tipoOperacion,
-                zona: item['zona'] ?? 'N/A',
-                idOperacion: operacionId,
-                      tipo_labor: item['tipo_labor'] ?? 'N/A',
-                      labor: item['labor'] ?? 'N/A',
-                      veta: item['veta'] ?? 'N/A',
-                      nivel: item['nivel'] ?? 'N/A',
-                      ala: item['ala'] ?? 'N/A',
-                id: id, // Solo pasamos el ID
-              ),
-            ),
-          );
-        },
-        child: Container(
-          width: 120,
-          child: Text(
-            text,
-            overflow: TextOverflow.ellipsis,
+            ],
           ),
         ),
-      ),
+      ],
     );
-  }
+  });
+}
+
+
+// Función para hacer que cada celda sea interactiva
+DataCell _buildInteractiveDataCell(
+    String text, int id, Map<String, dynamic> item) {
+  return DataCell(
+    GestureDetector(
+      onTap: () {
+        // Navigator.push(
+        //   context,
+        //   MaterialPageRoute(
+        //     builder: (context) => FormularioCarguioScreen(
+        //       id: id,
+        //       idOperacion: operacionId,
+        //       estado: estado!,
+        //       tipoOperacion: widget.tipoOperacion,
+        //       nivel: item['nivel'] ?? '',
+        //       labor_origen: item['labor_origen'] ?? '',
+        //       material: item['material'] ?? '',
+        //       labor_destino: item['labor_destino'] ?? '',
+        //       num_cucharas: item['num_cucharas'] ?? 0,
+        //       observaciones: item['observaciones'] ?? '',
+        //     ),
+        //   ),
+        // );
+      },
+      child: Container(
+        width: 140,
+        child: Text(
+          text,
+          overflow: TextOverflow.ellipsis,
+        ),
+      ),
+    ),
+  );
+}
+
 }
