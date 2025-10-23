@@ -1,5 +1,6 @@
 import 'package:app_seminco/components/reportes/ReportButton.dart';
 import 'package:app_seminco/components/carga.dart';
+import 'package:app_seminco/config/conect/connection_manager.dart';
 import 'package:app_seminco/database/database_helper_mina_2.dart';
 import 'package:app_seminco/inicio/login.dart';
 import 'package:app_seminco/mina%202/models/formato_plan_mineral.dart';
@@ -60,15 +61,16 @@ class _ReporteScreenMina2State extends State<ReporteScreenMina2> {
   bool isLoading = false;
   late ApiServiceEstado estadoService;
   Map<String, dynamic> operacionesAutorizadas = {};
+  
   @override
   void initState() {
     super.initState();
     apiService = ApiServiceFor();
     estadoService = ApiServiceEstado();
-    _cargarNombreUsuario();
-    // _inicializarBaseDeDatos();
-  //       final connectivity = Provider.of<ConnectivityServiceMina2>(context, listen: false);
-  // final syncService = Provider.of<BackgroundSyncServiceMina2>(context, listen: false);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+    ConnectionManager.startMonitoring(context);
+  });
+  _cargarNombreUsuario();
 
   }
 

@@ -46,6 +46,10 @@ class DatabaseHelper_Mina1 {
     _currentUserDni = dni;
     _database = await _initDatabase();
   }
+  
+  Future<String?> getCurrentUserDni() async {
+  return _currentUserDni;
+}
 
   /// Obtiene la instancia de la base de datos
   Future<Database> get database async {

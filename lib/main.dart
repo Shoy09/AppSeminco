@@ -56,27 +56,13 @@ void main() async {
   // 👇 IGNORAR CERTIFICADO NO VÁLIDO (SOLO PARA DESARROLLO)
   HttpOverrides.global = MyHttpOverrides();
 
-  // final connectivityService = ConnectivityService();
-  // final backgroundSyncService = BackgroundSyncService(connectivityService: connectivityService);
-
-
 runApp(MyApp());
 
-  // runApp(
-  //   MultiProvider(
-  //     providers: [
-  //       ChangeNotifierProvider(create: (_) => connectivityService),
-  //       Provider.value(value: backgroundSyncService),
-  //     ],
-  //     child: MyApp(),
-  //   ),
-  // );
 }
 
 class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    // final connectivity = Provider.of<ConnectivityService>(context);
 
     
     return MaterialApp(
@@ -85,7 +71,6 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(primarySwatch: Colors.blue),
       //  home: SplashScreen(),
       home: LoginScreen(),
-      
     );
   }
 }
@@ -97,5 +82,5 @@ class MyHttpOverrides extends HttpOverrides {
     return super.createHttpClient(context)
       ..badCertificateCallback = (X509Certificate cert, String host, int port) => true;
   }
-}
+}  
 //76161414

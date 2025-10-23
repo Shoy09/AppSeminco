@@ -1,5 +1,6 @@
 import 'package:app_seminco/components/reportes/ReportButton.dart';
 import 'package:app_seminco/components/carga.dart';
+import 'package:app_seminco/config/conect/connection_manager.dart';
 import 'package:app_seminco/database/database_helper.dart';
 import 'package:app_seminco/inicio/login.dart';
 import 'package:app_seminco/mina%201/models/formato_plan_mineral.dart';
@@ -65,11 +66,10 @@ class _ReporteScreenMina1State extends State<ReporteScreenMina1> {
     super.initState();
     apiService = ApiServiceFor();
     estadoService = ApiServiceEstado();
-    _cargarNombreUsuario();
-    // _inicializarBaseDeDatos();
-
-  //   final connectivity = Provider.of<ConnectivityService>(context, listen: false);
-  // final syncService = Provider.of<BackgroundSyncService>(context, listen: false);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+    ConnectionManager.startMonitoring(context);
+  });
+  _cargarNombreUsuario();
 
   }
 
