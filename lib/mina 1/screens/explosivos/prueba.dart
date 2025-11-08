@@ -11,7 +11,6 @@ import 'package:app_seminco/mina%201/models/Accesorio.dart';
 import 'package:app_seminco/mina%201/models/Explosivo.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:http/http.dart' as http;
-import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter/services.dart';
 
 

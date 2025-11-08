@@ -41,7 +41,7 @@
 // }
 
 import 'dart:io'; // 👈 necesario para HttpOverrides
-import 'package:app_seminco/mina%201/screens/Mediciones/horizontal/horizontal.dart';
+import 'package:app_seminco/mina%201/screens/Mediciones/horizontal/programado/explo/horizontal.dart';
 import 'package:app_seminco/mina%201/screens/Mediciones/largo/largo.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -69,8 +69,8 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       title: 'I-MINER',
       theme: ThemeData(primarySwatch: Colors.blue),
-      //  home: SplashScreen(),
-      home: LoginScreen(),
+        home: SplashScreen(),
+      // home: LoginScreen(),
     );
   }
 }

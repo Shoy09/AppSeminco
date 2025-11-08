@@ -7,32 +7,34 @@ class ApiServiceExploracion_Mina1 {
   final DatabaseHelper_Mina1 _dbHelper = DatabaseHelper_Mina1();
 
   // Método para obtener las exploraciones desde la API
-  Future<List<dynamic>> fetchExploracionesMina1(String token) async {
-    try {
-      final response = await http.get(
-        Uri.parse('${ApiConfig.baseUrl}${ApiConfig.datosExploracionesEndpoint}'),
-        headers: {
-          'Authorization': 'Bearer $token',
-        },
-      );
+Future<List<dynamic>> fetchExploracionesMina1(String token) async {
+  try {
+    final response = await http.get(
+      Uri.parse('${ApiConfig.baseUrl}${ApiConfig.datosExploracionesEndpoint}'),
+      headers: {
+        'Authorization': 'Bearer $token',
+      },
+    );
 
-      if (response.statusCode == 200) {
-        final List<dynamic> exploraciones = json.decode(response.body);
-        
-        // Eliminar los datos antiguos antes de insertar los nuevos
-        await _cleanLocalDatabase();
-        
-        // Guardar los datos en la base de datos local
-        await _saveExploracionesToLocalDB(exploraciones);
-        
-        return exploraciones;
-      } else {
-        throw Exception('Error al obtener exploraciones. Código: ${response.statusCode}');
-      }
-    } catch (error) {
-      throw Exception('Error en la solicitud: $error');
+    if (response.statusCode == 200) {
+      final Map<String, dynamic> jsonResponse = json.decode(response.body);
+      final List<dynamic> exploraciones = jsonResponse['data'];
+
+      // Limpiar la base local
+      await _cleanLocalDatabase();
+
+      // Guardar los datos
+      await _saveExploracionesToLocalDB(exploraciones);
+
+      return exploraciones;
+    } else {
+      throw Exception('Error al obtener exploraciones. Código: ${response.statusCode}');
     }
+  } catch (error) {
+    throw Exception('Error en la solicitud: $error');
   }
+}
+
 
   // Limpiar todas las tablas relacionadas con exploraciones
   Future<void> _cleanLocalDatabase() async {

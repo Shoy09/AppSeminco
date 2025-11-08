@@ -19,6 +19,7 @@ class _FormularioDialogSalidaState extends State<FormularioDialogSalida> {
   String _turno = 'DIA';
   String _proceso = 'PERFORACIÓN TALADROS LARGOS';
   String _tipoAcero = '';
+  String _descripcionSeleccionada = '';
   String _equipo = '';
   String _codigoEquipo = '';
   String _operador = '';
@@ -34,6 +35,7 @@ class _FormularioDialogSalidaState extends State<FormularioDialogSalida> {
   // Listas para datos de BD
   List<Map<String, dynamic>> _todosProcesosAcero = [];
   List<Map<String, dynamic>> _procesosAceroFiltrados = [];
+  List<String> _descripcionesDisponibles = [];
   List<Equipo> _todosEquipos = [];
   List<Equipo> _equiposFiltrados = [];
   List<Map<String, dynamic>> _operadores = [];
@@ -89,252 +91,277 @@ class _FormularioDialogSalidaState extends State<FormularioDialogSalida> {
           .where((procesoAcero) => procesoAcero['proceso'] == _proceso)
           .toList();
       
-      if (_procesosAceroFiltrados.isNotEmpty) {
-        final tiposAceroDisponibles = _procesosAceroFiltrados
-            .map((pa) => pa['tipo_acero'] as String)
-            .toList();
-        
-        if (!tiposAceroDisponibles.contains(_tipoAcero)) {
-          _tipoAcero = tiposAceroDisponibles.first;
+      // Obtener tipos de acero únicos (sin duplicados)
+      final tiposAceroUnicos = _getTiposAceroUnicos();
+      
+      // Resetear el tipo de acero seleccionado si no está en la lista filtrada
+      if (tiposAceroUnicos.isNotEmpty) {
+        if (!tiposAceroUnicos.contains(_tipoAcero)) {
+          _tipoAcero = tiposAceroUnicos.first;
+          // Actualizar las descripciones disponibles para el nuevo tipo
+          _actualizarDescripcionesDisponibles();
+        } else {
+          // Si ya hay un tipo seleccionado, actualizar las descripciones
+          _actualizarDescripcionesDisponibles();
         }
       } else {
         _tipoAcero = '';
+        _descripcionSeleccionada = '';
+        _descripcionesDisponibles = [];
+      }
+    });
+  }
+
+  // Función para obtener tipos de acero únicos (sin duplicados)
+  List<String> _getTiposAceroUnicos() {
+    final tiposSet = <String>{};
+    final tiposUnicos = <String>[];
+    
+    for (final procesoAcero in _procesosAceroFiltrados) {
+      final tipoAcero = procesoAcero['tipo_acero'] as String;
+      if (!tiposSet.contains(tipoAcero)) {
+        tiposSet.add(tipoAcero);
+        tiposUnicos.add(tipoAcero);
+      }
+    }
+    
+    return tiposUnicos;
+  }
+
+  // Función para actualizar las descripciones disponibles cuando cambia el tipo de acero
+  void _actualizarDescripcionesDisponibles() {
+    setState(() {
+      _descripcionesDisponibles = _procesosAceroFiltrados
+          .where((pa) => pa['tipo_acero'] == _tipoAcero)
+          .map((pa) => pa['descripcion'] as String? ?? 'Sin descripción')
+          .toList();
+      
+      // Seleccionar la primera descripción por defecto si hay disponibles
+      if (_descripcionesDisponibles.isNotEmpty) {
+        if (!_descripcionesDisponibles.contains(_descripcionSeleccionada)) {
+          _descripcionSeleccionada = _descripcionesDisponibles.first;
+        }
+      } else {
+        _descripcionSeleccionada = '';
       }
     });
   }
 
   // Función para filtrar equipos según el proceso seleccionado
-// Función para filtrar equipos según el proceso seleccionado
-void _filtrarEquipos() {
-  setState(() {
-    _equiposFiltrados = _todosEquipos
-        .where((equipo) => equipo.proceso == _proceso)
-        .toList();
-    
-    if (_equiposFiltrados.isNotEmpty) {
-      final equiposDisponibles = _equiposFiltrados
-          .map((e) => e.nombre)
+  void _filtrarEquipos() {
+    setState(() {
+      _equiposFiltrados = _todosEquipos
+          .where((equipo) => equipo.proceso == _proceso)
           .toList();
       
-      if (!equiposDisponibles.contains(_equipo)) {
-        _equipo = equiposDisponibles.first;
-        _actualizarCodigoEquipo();
+      if (_equiposFiltrados.isNotEmpty) {
+        final equiposDisponibles = _equiposFiltrados
+            .map((e) => e.nombre)
+            .toSet()
+            .toList();
+        
+        if (!equiposDisponibles.contains(_equipo)) {
+          _equipo = equiposDisponibles.isNotEmpty ? equiposDisponibles.first : '';
+          _actualizarCodigoEquipo();
+        } else {
+          // Si ya hay un equipo seleccionado, actualizar los códigos disponibles
+          _actualizarCodigoEquipo();
+        }
       } else {
-        // Si ya hay un equipo seleccionado, actualizar los códigos disponibles
-        _actualizarCodigoEquipo();
+        _equipo = '';
+        _codigoEquipo = '';
       }
-    } else {
-      _equipo = '';
-      _codigoEquipo = '';
-    }
-  });
-}
+    });
+  }
 
   // Función para actualizar el código de equipo cuando se selecciona un equipo
-void _actualizarCodigoEquipo() {
-  if (_equipo.isNotEmpty && _equiposFiltrados.isNotEmpty) {
-    final equipoSeleccionado = _equiposFiltrados
-        .firstWhere((e) => e.nombre == _equipo);
-    setState(() {
-      _codigoEquipo = equipoSeleccionado.codigo;
-    });
-  } else {
-    setState(() {
-      _codigoEquipo = '';
-    });
-  }
-}
-
-  // Función para obtener la descripción del tipo de acero seleccionado
-  String _getDescripcionAcero() {
-    if (_tipoAcero.isEmpty || _procesosAceroFiltrados.isEmpty) {
-      return '';
-    }
-    
-    final procesoAcero = _procesosAceroFiltrados.firstWhere(
-      (pa) => pa['tipo_acero'] == _tipoAcero,
-      orElse: () => {},
-    );
-    
-    return procesoAcero['descripcion'] as String? ?? '';
-  }
-  
-void _mostrarErrorDialog(String mensaje) {
-  showDialog(
-    context: context,
-    barrierDismissible: false,
-    barrierColor: Colors.black54,
-    builder: (context) {
-      final dialogContext = context;
-      bool isDialogOpen = true;
-      
-      // Cerrar automáticamente después de 2 segundos
-      Future.delayed(const Duration(seconds: 5), () {
-        if (isDialogOpen && Navigator.of(dialogContext, rootNavigator: true).canPop()) {
-          Navigator.of(dialogContext, rootNavigator: true).pop();
-        }
+  void _actualizarCodigoEquipo() {
+    if (_equipo.isNotEmpty && _equiposFiltrados.isNotEmpty) {
+      final equipoSeleccionado = _equiposFiltrados
+          .firstWhere((e) => e.nombre == _equipo);
+      setState(() {
+        _codigoEquipo = equipoSeleccionado.codigo;
       });
+    } else {
+      setState(() {
+        _codigoEquipo = '';
+      });
+    }
+  }
 
-      return PopScope(
-        canPop: false,
-        child: AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16.0),
-          ),
-          elevation: 8,
-          backgroundColor: Colors.white,
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.red.shade50,
-                  shape: BoxShape.circle,
+  void _mostrarErrorDialog(String mensaje) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      barrierColor: Colors.black54,
+      builder: (context) {
+        final dialogContext = context;
+        bool isDialogOpen = true;
+        
+        // Cerrar automáticamente después de 5 segundos
+        Future.delayed(const Duration(seconds: 5), () {
+          if (isDialogOpen && Navigator.of(dialogContext, rootNavigator: true).canPop()) {
+            Navigator.of(dialogContext, rootNavigator: true).pop();
+          }
+        });
+
+        return PopScope(
+          canPop: false,
+          child: AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16.0),
+            ),
+            elevation: 8,
+            backgroundColor: Colors.white,
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.red.shade50,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.error_outline,
+                    color: Colors.red.shade600,
+                    size: 52,
+                  ),
                 ),
-                child: Icon(
-                  Icons.error_outline,
-                  color: Colors.red.shade600,
-                  size: 52,
-                ),
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                'Error',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.black87,
-                ),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                mensaje,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 16,
-                  height: 1.4,
-                  color: Colors.black87,
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            Center(
-              child: TextButton(
-                onPressed: () {
-                  isDialogOpen = false;
-                  Navigator.of(dialogContext, rootNavigator: true).pop();
-                },
-                style: TextButton.styleFrom(
-                  foregroundColor: Colors.red.shade600,
-                  padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
-                ),
-                child: const Text(
-                  "Entendido",
+                const SizedBox(height: 16),
+                const Text(
+                  'Error',
                   style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  mensaje,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
                     fontSize: 16,
-                    fontWeight: FontWeight.w500,
+                    height: 1.4,
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              Center(
+                child: TextButton(
+                  onPressed: () {
+                    isDialogOpen = false;
+                    Navigator.of(dialogContext, rootNavigator: true).pop();
+                  },
+                  style: TextButton.styleFrom(
+                    foregroundColor: Colors.red.shade600,
+                    padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+                  ),
+                  child: const Text(
+                    "Entendido",
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                 ),
               ),
-            ),
-          ],
-          actionsAlignment: MainAxisAlignment.center,
-        ),
-      );
-    },
-  );
-}
+            ],
+            actionsAlignment: MainAxisAlignment.center,
+          ),
+        );
+      },
+    );
+  }
 
   // Función para guardar la salida en la base de datos
-Future<void> _guardarSalida() async {
-  if (_tipoAcero.isEmpty || _cantidadController.text.isEmpty || 
-      _equipo.isEmpty || _operador.isEmpty || _jefeGuardia.isEmpty || _codigoEquipo.isEmpty) {
-    _mostrarError('Por favor, complete todos los campos');
-    return;
-  }
-
-  final cantidad = double.tryParse(_cantidadController.text);
-  if (cantidad == null || cantidad <= 0) {
-    _mostrarError('Por favor, ingrese una cantidad válida');
-    return;
-  }
-
-  setState(() {
-    _isLoading = true;
-  });
-
-  try {
-    final dbHelper = DatabaseHelper_Mina1();
-
-    // 🔹 1. Obtener ingresos y salidas acumulados para este proceso/tipo/desc
-    final ingresos = await dbHelper.getIngresosAceros();
-    final salidas = await dbHelper.getSalidasAceros();
-
-    final key = "${_proceso}_${_tipoAcero}_${_getDescripcionAcero()}";
-
-    double totalIngresos = 0;
-    double totalSalidas = 0;
-
-    for (var ing in ingresos) {
-      final k = "${ing['proceso']}_${ing['tipo_acero']}_${ing['descripcion']}";
-      if (k == key) {
-        totalIngresos += ing['cantidad'] ?? 0.0;
-      }
-    }
-
-    for (var sal in salidas) {
-      final k = "${sal['proceso']}_${sal['tipo_acero']}_${sal['descripcion']}";
-      if (k == key) {
-        totalSalidas += sal['cantidad'] ?? 0.0;
-      }
-    }
-
-    final disponible = totalIngresos - totalSalidas;
-
-    // 🔹 2. Validar contra stock disponible
-    if (cantidad > disponible) {
-      _mostrarErrorDialog("La salida solicitada ($cantidad) excede el stock disponible ($disponible)");
-      setState(() {
-        _isLoading = false;
-      });
+  Future<void> _guardarSalida() async {
+    if (_tipoAcero.isEmpty || _descripcionSeleccionada.isEmpty || _cantidadController.text.isEmpty || 
+        _equipo.isEmpty || _operador.isEmpty || _jefeGuardia.isEmpty || _codigoEquipo.isEmpty) {
+      _mostrarError('Por favor, complete todos los campos');
       return;
     }
 
-    // 🔹 3. Guardar en la base de datos si es válido
-    final resultado = await dbHelper.createSalidaAceros(
-      DateFormat('yyyy-MM-dd').format(_fecha),
-      _turno,
-      _getMes(),
-      _proceso,
-      _equipo,
-      _codigoEquipo,
-      _operador,
-      _jefeGuardia,
-      _tipoAcero,
-      _getDescripcionAcero(),
-      cantidad,
-    );
-
-    if (resultado > 0) {
-      if (widget.onSalidaGuardada != null) {
-        widget.onSalidaGuardada!();
-      }
-      Navigator.pop(context);
-      _mostrarExito('Salida guardada exitosamente');
-    } else {
-      _mostrarError('Error al guardar la salida');
+    final cantidad = double.tryParse(_cantidadController.text);
+    if (cantidad == null || cantidad <= 0) {
+      _mostrarError('Por favor, ingrese una cantidad válida');
+      return;
     }
-  } catch (e) {
-    _mostrarError('Error al guardar: $e');
-  } finally {
-    setState(() {
-      _isLoading = false;
-    });
-  }
-}
 
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final dbHelper = DatabaseHelper_Mina1();
+
+      // 🔹 1. Obtener ingresos y salidas acumulados para este proceso/tipo/desc
+      final ingresos = await dbHelper.getIngresosAceros();
+      final salidas = await dbHelper.getSalidasAceros();
+
+      final key = "${_proceso}_${_tipoAcero}_${_descripcionSeleccionada}";
+
+      double totalIngresos = 0;
+      double totalSalidas = 0;
+
+      for (var ing in ingresos) {
+        final k = "${ing['proceso']}_${ing['tipo_acero']}_${ing['descripcion']}";
+        if (k == key) {
+          totalIngresos += ing['cantidad'] ?? 0.0;
+        }
+      }
+
+      for (var sal in salidas) {
+        final k = "${sal['proceso']}_${sal['tipo_acero']}_${sal['descripcion']}";
+        if (k == key) {
+          totalSalidas += sal['cantidad'] ?? 0.0;
+        }
+      }
+
+      final disponible = totalIngresos - totalSalidas;
+
+      // 🔹 2. Validar contra stock disponible
+      if (cantidad > disponible) {
+        _mostrarErrorDialog("La salida solicitada ($cantidad) excede el stock disponible ($disponible)");
+        setState(() {
+          _isLoading = false;
+        });
+        return;
+      }
+
+      // 🔹 3. Guardar en la base de datos si es válido
+      final resultado = await dbHelper.createSalidaAceros(
+        DateFormat('yyyy-MM-dd').format(_fecha),
+        _turno,
+        _getMes(),
+        _proceso,
+        _equipo,
+        _codigoEquipo,
+        _operador,
+        _jefeGuardia,
+        _tipoAcero,
+        _descripcionSeleccionada,
+        cantidad,
+      );
+
+      if (resultado > 0) {
+        if (widget.onSalidaGuardada != null) {
+          widget.onSalidaGuardada!();
+        }
+        Navigator.pop(context);
+        _mostrarExito('Salida guardada exitosamente');
+      } else {
+        _mostrarError('Error al guardar la salida');
+      }
+    } catch (e) {
+      _mostrarError('Error al guardar: $e');
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
 
   void _mostrarError(String mensaje) {
     ScaffoldMessenger.of(context).showSnackBar(
@@ -435,7 +462,7 @@ Future<void> _guardarSalida() async {
               _buildEquipoField(),
               const SizedBox(height: 15),
               
-              // CÓDIGO DE EQUIPO (AHORA ES SELECCIONABLE)
+              // CÓDIGO DE EQUIPO (SELECCIONABLE)
               _buildCodigoEquipoField(),
               const SizedBox(height: 15),
               
@@ -471,14 +498,8 @@ Future<void> _guardarSalida() async {
               _buildTipoAceroField(),
               const SizedBox(height: 15),
               
-              // DESCRIPCIÓN (automática)
-              _buildReadOnlyField(
-                label: 'Descripción',
-                value: _getDescripcionAcero(),
-                hint: _procesosAceroFiltrados.isEmpty 
-                    ? 'No hay tipos de acero para este proceso'
-                    : 'Seleccione un tipo de acero primero',
-              ),
+              // DESCRIPCIÓN (AHORA ES SELECCIONABLE)
+              _buildDescripcionField(),
               const SizedBox(height: 15),
               
               // CANTIDAD
@@ -514,118 +535,12 @@ Future<void> _guardarSalida() async {
     );
   }
 
-  // Widget para el campo de código de equipo (AHORA ES SELECCIONABLE)
-Widget _buildCodigoEquipoField() {
-  // Obtener códigos de equipo únicos para el EQUIPO seleccionado
-  final codigosEquiposDisponibles = _equiposFiltrados
-      .where((equipo) => equipo.nombre == _equipo) // FILTRAR POR EQUIPO SELECCIONADO
-      .map((e) => e.codigo)
-      .toSet()
-      .toList();
-
-  return Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      _buildDropdownField(
-        label: 'Código de Equipo',
-        value: _codigoEquipo.isEmpty ? null : _codigoEquipo,
-        items: codigosEquiposDisponibles,
-        onChanged: codigosEquiposDisponibles.isEmpty 
-    ? null
-    : (value) {
-        setState(() {
-          _codigoEquipo = value!;
-          _actualizarEquipoDesdeCodigo(); // Mantener esta línea si quieres bidireccionalidad
-        });
-      },
-        hint: codigosEquiposDisponibles.isEmpty 
-            ? 'No hay códigos para este equipo'
-            : 'Seleccione un código de equipo',
-      ),
-      if (_equiposFiltrados.isEmpty) ...[
-        const SizedBox(height: 4),
-        Text(
-          "No se encontraron códigos de equipo para el proceso seleccionado",
-          style: TextStyle(
-            fontSize: 10,
-            color: Colors.orange[700],
-            fontStyle: FontStyle.italic,
-          ),
-        ),
-      ] else if (_equipo.isEmpty) ...[
-        const SizedBox(height: 4),
-        Text(
-          "Seleccione un equipo primero para ver los códigos disponibles",
-          style: TextStyle(
-            fontSize: 10,
-            color: Colors.blue[700],
-            fontStyle: FontStyle.italic,
-          ),
-        ),
-      ],
-    ],
-  );
-}
-
- // Función para actualizar el nombre del equipo cuando se selecciona un código
-void _actualizarEquipoDesdeCodigo() {
-  if (_codigoEquipo.isNotEmpty && _equiposFiltrados.isNotEmpty) {
-    final equipoSeleccionado = _equiposFiltrados
-        .firstWhere((e) => e.codigo == _codigoEquipo);
-    setState(() {
-      _equipo = equipoSeleccionado.nombre;
-    });
-  } else {
-    setState(() {
-      _equipo = '';
-    });
-  }
-}
-
-  // Widget especial para el campo de equipo
-  Widget _buildEquipoField() {
-  final equiposDisponibles = _equiposFiltrados
-      .map((e) => e.nombre)
-      .toSet()
-      .toList();
-
-  return Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      _buildDropdownField(
-        label: 'Equipo',
-        value: _equipo.isEmpty ? null : _equipo,
-        items: equiposDisponibles,
-        onChanged: equiposDisponibles.isEmpty 
-            ? null
-            : (value) {
-                setState(() {
-                  _equipo = value!;
-                  _actualizarCodigoEquipo(); // Actualizar códigos cuando cambia el equipo
-                });
-              },
-        hint: equiposDisponibles.isEmpty 
-            ? 'No hay equipos para este proceso'
-            : 'Seleccione un equipo',
-      ),
-      if (_equiposFiltrados.isEmpty) ...[
-        const SizedBox(height: 4),
-        Text(
-          "No se encontraron equipos para el proceso seleccionado",
-          style: TextStyle(
-            fontSize: 10,
-            color: Colors.orange[700],
-            fontStyle: FontStyle.italic,
-          ),
-        ),
-      ],
-    ],
-  );
-}
-
-  Widget _buildTipoAceroField() {
-    final tiposAceroDisponibles = _procesosAceroFiltrados
-        .map((pa) => pa['tipo_acero'] as String)
+  // Widget para el campo de código de equipo (SELECCIONABLE)
+  Widget _buildCodigoEquipoField() {
+    // Obtener códigos de equipo únicos para el EQUIPO seleccionado
+    final codigosEquiposDisponibles = _equiposFiltrados
+        .where((equipo) => equipo.nombre == _equipo)
+        .map((e) => e.codigo)
         .toSet()
         .toList();
 
@@ -633,20 +548,136 @@ void _actualizarEquipoDesdeCodigo() {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _buildDropdownField(
+          label: 'Código de Equipo',
+          value: _codigoEquipo.isEmpty ? null : _codigoEquipo,
+          items: codigosEquiposDisponibles,
+          onChanged: codigosEquiposDisponibles.isEmpty 
+              ? null
+              : (value) {
+                  setState(() {
+                    _codigoEquipo = value!;
+                    _actualizarEquipoDesdeCodigo();
+                  });
+                },
+          hint: codigosEquiposDisponibles.isEmpty 
+              ? 'No hay códigos para este equipo'
+              : 'Seleccione un código de equipo',
+        ),
+        if (_equiposFiltrados.isEmpty) ...[
+          const SizedBox(height: 4),
+          Text(
+            "No se encontraron códigos de equipo para el proceso seleccionado",
+            style: TextStyle(
+              fontSize: 10,
+              color: Colors.orange[700],
+              fontStyle: FontStyle.italic,
+            ),
+          ),
+        ] else if (_equipo.isEmpty) ...[
+          const SizedBox(height: 4),
+          Text(
+            "Seleccione un equipo primero para ver los códigos disponibles",
+            style: TextStyle(
+              fontSize: 10,
+              color: Colors.blue[700],
+              fontStyle: FontStyle.italic,
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  // Función para actualizar el nombre del equipo cuando se selecciona un código
+  void _actualizarEquipoDesdeCodigo() {
+    if (_codigoEquipo.isNotEmpty && _equiposFiltrados.isNotEmpty) {
+      final equipoSeleccionado = _equiposFiltrados
+          .firstWhere((e) => e.codigo == _codigoEquipo);
+      setState(() {
+        _equipo = equipoSeleccionado.nombre;
+      });
+    } else {
+      setState(() {
+        _equipo = '';
+      });
+    }
+  }
+
+  // Widget especial para el campo de equipo
+  Widget _buildEquipoField() {
+    final equiposDisponibles = _equiposFiltrados
+        .map((e) => e.nombre)
+        .toSet()
+        .toList();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildDropdownField(
+          label: 'Equipo',
+          value: _equipo.isEmpty ? null : _equipo,
+          items: equiposDisponibles,
+          onChanged: equiposDisponibles.isEmpty 
+              ? null
+              : (value) {
+                  setState(() {
+                    _equipo = value!;
+                    _actualizarCodigoEquipo();
+                  });
+                },
+          hint: equiposDisponibles.isEmpty 
+              ? 'No hay equipos para este proceso'
+              : 'Seleccione un equipo',
+        ),
+        if (_equiposFiltrados.isEmpty) ...[
+          const SizedBox(height: 4),
+          Text(
+            "No se encontraron equipos para el proceso seleccionado",
+            style: TextStyle(
+              fontSize: 10,
+              color: Colors.orange[700],
+              fontStyle: FontStyle.italic,
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  // Widget para el campo de tipo de acero
+  Widget _buildTipoAceroField() {
+    final tiposAceroUnicos = _getTiposAceroUnicos();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildDropdownField(
           label: 'Tipo de Acero',
           value: _tipoAcero.isEmpty ? null : _tipoAcero,
-          items: tiposAceroDisponibles,
-          onChanged: tiposAceroDisponibles.isEmpty 
+          items: tiposAceroUnicos,
+          onChanged: tiposAceroUnicos.isEmpty 
               ? null
               : (value) {
                   setState(() {
                     _tipoAcero = value!;
+                    _actualizarDescripcionesDisponibles();
                   });
                 },
-          hint: tiposAceroDisponibles.isEmpty 
+          hint: tiposAceroUnicos.isEmpty 
               ? 'No hay tipos de acero para este proceso'
               : 'Seleccione un tipo de acero',
         ),
+        if (_procesosAceroFiltrados.isNotEmpty && tiposAceroUnicos.length < _procesosAceroFiltrados.length) ...[
+          const SizedBox(height: 4),
+          Text(
+            "Este tipo de acero tiene múltiples descripciones disponibles",
+            style: TextStyle(
+              fontSize: 10,
+              color: Colors.blue[700],
+              fontStyle: FontStyle.italic,
+            ),
+          ),
+        ],
         if (_procesosAceroFiltrados.isEmpty) ...[
           const SizedBox(height: 4),
           Text(
@@ -654,6 +685,43 @@ void _actualizarEquipoDesdeCodigo() {
             style: TextStyle(
               fontSize: 10,
               color: Colors.orange[700],
+              fontStyle: FontStyle.italic,
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  // Widget para el campo de descripción (AHORA ES SELECCIONABLE)
+  Widget _buildDescripcionField() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildDropdownField(
+          label: 'Descripción',
+          value: _descripcionSeleccionada.isEmpty ? null : _descripcionSeleccionada,
+          items: _descripcionesDisponibles,
+          onChanged: _descripcionesDisponibles.isEmpty || _tipoAcero.isEmpty
+              ? null
+              : (value) {
+                  setState(() {
+                    _descripcionSeleccionada = value!;
+                  });
+                },
+          hint: _tipoAcero.isEmpty
+              ? 'Seleccione un tipo de acero primero'
+              : _descripcionesDisponibles.isEmpty
+                  ? 'No hay descripciones disponibles'
+                  : 'Seleccione una descripción',
+        ),
+        if (_descripcionesDisponibles.length > 1) ...[
+          const SizedBox(height: 4),
+          Text(
+            "${_descripcionesDisponibles.length} descripciones disponibles para este tipo de acero",
+            style: TextStyle(
+              fontSize: 10,
+              color: Colors.green[700],
               fontStyle: FontStyle.italic,
             ),
           ),

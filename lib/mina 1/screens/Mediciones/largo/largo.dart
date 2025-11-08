@@ -129,6 +129,8 @@ void _asignarToneladasAExploraciones() {
       _explosivos = explosivos;
     });
   }
+
+  
 Future<void> _getTiposPerforacion() async {
   try {
     final dbHelper = DatabaseHelper_Mina1();

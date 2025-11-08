@@ -330,14 +330,14 @@ Future<void> actualizarExploracionesYMediciones(BuildContext context) async {
       final apiService = ApiServiceExploracion_Mina1(); // ✅ Crear una instancia
 
       final tipos = await apiService.fetchExploracionesMina1(widget.token);
-      print("Tipos de Perforación cargados correctamente: $tipos");
+      print("explosivos cargados correctamente: $tipos");
 
       // Verificar si los datos se almacenaron correctamente
       final dbHelper = DatabaseHelper_Mina1();
-      final tiposBD = await dbHelper.getAll('TipoPerforacion');
-      print("Tipos de Perforación en la base de datos local: $tiposBD");
+      final tiposBD = await dbHelper.getAll('nube_Datos_trabajo_exploraciones');
+      print("explosivos en la base de datos local: $tiposBD");
     } catch (e) {
-      print("Error al cargar los tipos de perforación: $e");
+      print("Error al cargar los explosivos: $e");
     }
   }
 

@@ -7,12 +7,14 @@ import 'package:app_seminco/mina%201/screens/Actualizar%20Datos/Largo/detalle_la
 import 'package:app_seminco/mina%201/screens/Actualizar%20Datos/Explosivos/detalle_explosivos_screen.dart';
 import 'package:app_seminco/mina%201/screens/Actualizar%20Datos/Horizontal/detalle_horizontal_screen.dart';
 import 'package:app_seminco/mina%201/screens/Actualizar%20Datos/Largo/detalle_largo_screen.dart';
-import 'package:app_seminco/mina%201/screens/Actualizar%20Datos/Mediciones/horizontal/detalle_mediciones_screen.dart';
+import 'package:app_seminco/mina%201/screens/Actualizar%20Datos/Mediciones/horizontal/Ejecutado/detalle_mediciones_screen.dart';
+import 'package:app_seminco/mina%201/screens/Actualizar%20Datos/Mediciones/horizontal/Programado/detalle_mediciones_screen.dart';
 import 'package:app_seminco/mina%201/screens/Actualizar%20Datos/Mediciones/largo/detalle_mediciones_screen.dart';
 import 'package:app_seminco/mina%201/screens/Actualizar%20Datos/Sostenimiento/detalle_sostenimiento_screen.dart';
 import 'package:app_seminco/mina%201/screens/Actualizar%20Datos/carguio/detalle_carguio_screen.dart';
 import 'package:app_seminco/mina%201/services/Enviar%20nube/aceros_service.dart';
 import 'package:app_seminco/mina%201/services/Enviar%20nube/api_service_mediciones_horizontal.dart';
+import 'package:app_seminco/mina%201/services/Enviar%20nube/api_service_mediciones_horizontal_programado.dart';
 import 'package:app_seminco/mina%201/services/Enviar%20nube/carguio_service.dart';
 import 'package:app_seminco/mina%201/services/Enviar%20nube/operacion_service.dart';
 import 'package:app_seminco/mina%201/services/Enviar%20nube/ExploracionService_service.dart';
@@ -33,7 +35,8 @@ class _SeccionesScreenState extends State<SeccionesScreen> {
     "SOSTENIMIENTO": (context) =>
         DetalleSostenimientoScreen(tipoOperacion: "SOSTENIMIENTO"),
     "EXPLOSIVOS": (context) => DetalleExplosivos(tipoOperacion: "EXPLOSIVOS"),
-    "MEDICIONES TAL. HORIZONTAL": (context) => ListaMedicionesScreen(tipoPerforacion: "MEDICIONES TAL. HORIZONTAL"),
+    "MEDICIONES TAL. HORIZONTAL EJECUTADO": (context) => ListaMedicionesScreen(tipoPerforacion: "MEDICIONES TAL. HORIZONTAL EJECUTADO"),
+    "MEDICIONES TAL. HORIZONTAL PROGRAMADO": (context) => ListaMedicionesScreenProgramado(tipoPerforacion: "MEDICIONES TAL. HORIZONTAL PROGRAMADO"),
     "ACEROS DE PERFORACIÓN": (context) => ListaAcerosScreen(tipoProceso: "ACEROS DE PERFORACIÓN"),
     "CARGUÍO": (context) => ListaCarguiosScreen(tipoOperacion: "CARGUÍO"),
     
@@ -46,7 +49,8 @@ class _SeccionesScreenState extends State<SeccionesScreen> {
     "EXPLOSIVOS",
     "MEDICIONES",
     "CARGUÍO",
-    "MEDICIONES TAL. HORIZONTAL",
+    "MEDICIONES TAL. HORIZONTAL EJECUTADO",
+    "MEDICIONES TAL. HORIZONTAL PROGRAMADO",
     "ACEROS DE PERFORACIÓN",
   ];
 
@@ -59,6 +63,7 @@ class _SeccionesScreenState extends State<SeccionesScreen> {
   Set<int> idscarguio = {};
   Set<int> idsExplosivos = {};
   Set<int> idsMedicionesHorizontal = {};
+  Set<int> idsMedicionesHorizontalProgramado = {};
   Set<int> idsIngresosAceros = {};
   Set<int> idsSalidasAceros = {};
   
@@ -68,6 +73,7 @@ class _SeccionesScreenState extends State<SeccionesScreen> {
   List<Map<String, dynamic>> operacionDatacarguio = [];
   List<Map<String, dynamic>> operacionDataExplosi = [];
   List<Map<String, dynamic>> operacionDataMedicionesHorizontal = [];
+  List<Map<String, dynamic>> operacionDataMedicionesHorizontalProgramado = [];
   List<Map<String, dynamic>> ingresosAcerosData = [];
   List<Map<String, dynamic>> salidasAcerosData = [];
 
@@ -193,6 +199,7 @@ void _mostrarDialogo(BuildContext context) async {
     idsHorizontal.clear();
     idsExplosivos.clear();
     idsMedicionesHorizontal.clear();
+    idsMedicionesHorizontalProgramado.clear();
     idsIngresosAceros.clear();
     idsSalidasAceros.clear();
     idscarguio.clear();
@@ -202,8 +209,10 @@ void _mostrarDialogo(BuildContext context) async {
 
       if (seccion == "EXPLOSIVOS") {
         datos = await dbHelper.getExploracionesPendientes();
-      } else if (seccion == "MEDICIONES TAL. HORIZONTAL") {
+      } else if (seccion == "MEDICIONES TAL. HORIZONTAL EJECUTADO") {
         datos = await dbHelper.getMedicionesHorizontalPendientes();
+      }else if (seccion == "MEDICIONES TAL. HORIZONTAL PROGRAMADO") {
+        datos = await dbHelper.getMedicionesHorizontalProgramadoPendientes();
       } else if (seccion == "ACEROS DE PERFORACIÓN") {
         // Para aceros, combinamos ingresos y salidas pendientes
         List<Map<String, dynamic>> ingresosPendientes = await dbHelper.getIngresosPendientes();
@@ -234,8 +243,10 @@ void _mostrarDialogo(BuildContext context) async {
           idscarguio.add(id);
         } else if (seccion == "EXPLOSIVOS") {
           idsExplosivos.add(id);
-        } else if (seccion == "MEDICIONES TAL. HORIZONTAL") {
+        } else if (seccion == "MEDICIONES TAL. HORIZONTAL EJECUTADO") {
           idsMedicionesHorizontal.add(id);
+        } else if (seccion == "MEDICIONES TAL. HORIZONTAL PROGRAMADO") {
+          idsMedicionesHorizontalProgramado.add(id);
         } else if (seccion == "ACEROS DE PERFORACIÓN") {
           // Para aceros, diferenciamos entre ingresos y salidas
           if (operacion['tipo_acero_registro'] == 'INGRESO') {
@@ -253,6 +264,7 @@ void _mostrarDialogo(BuildContext context) async {
     print("Carguio IDs: $idscarguio");
     print("Explosivos IDs: $idsExplosivos");
     print("Medicion horizontal IDs: $idsMedicionesHorizontal");
+    print("Medicion horizontal IDs: $idsMedicionesHorizontalProgramado");
     print("Ingresos Aceros IDs: $idsIngresosAceros");
     print("Salidas Aceros IDs: $idsSalidasAceros");
 
@@ -338,7 +350,7 @@ void _mostrarDialogo(BuildContext context) async {
         SizedBox(width: 10),
         Text("Estado: ${operacion['estado']}", style: TextStyle(fontSize: 14)),
       ];
-    } else if (seccion == "MEDICIONES TAL. HORIZONTAL") {
+    } else if (seccion == "MEDICIONES TAL. HORIZONTAL EJECUTADO" || seccion == "MEDICIONES TAL. HORIZONTAL PROGRAMADO") {
       return [
         Text("Mes: ${operacion['mes']}", style: TextStyle(fontSize: 14)),
         SizedBox(width: 10),
@@ -437,6 +449,12 @@ void _mostrarDialogo(BuildContext context) async {
 
       if (idsMedicionesHorizontal.isNotEmpty) {
         await _exportSelectedItemsMedicionHorizontal();
+        algunEnvioRealizado = true;
+        mensajeResultado += '- Datos de Mediciones horizontal enviados\n';
+      }
+
+      if (idsMedicionesHorizontalProgramado.isNotEmpty) {
+        await _exportSelectedItemsMedicionHorizontalProgramado();
         algunEnvioRealizado = true;
         mensajeResultado += '- Datos de Mediciones horizontal enviados\n';
       }
@@ -1348,6 +1366,147 @@ Future<void> _enviarDatosALaNubeMEdicionHorizontal(List<Map<String, dynamic>> js
   Future<int> _actualizarEnviomedicionHorizontal(int medicionId) async {
     DatabaseHelper_Mina1 dbHelper = DatabaseHelper_Mina1();
     return await dbHelper.actualizarEnvioMedicionesHorizontal([medicionId]);
+  }
+
+//MEDICIONES  PROGAMADOS--------------------------------------------------------------------------------------------------------------------------------
+
+Future<void> _exportSelectedItemsMedicionHorizontalProgramado() async {
+  if (idsMedicionesHorizontalProgramado.isEmpty) return;
+
+  final dbHelper = DatabaseHelper_Mina1();
+  final List<Map<String, dynamic>> jsonCrear = [];
+  final List<Map<String, dynamic>> jsonActualizar = [];
+
+  for (final id in idsMedicionesHorizontalProgramado) {
+    final medicion = await dbHelper.obtenerMedicionHorizontalPorIdProgramado(id);
+    if (medicion == null) continue;
+
+    // si trae idNube_medicion (no null y >0) lo mandamos a actualizar
+    if (medicion['idNube_medicion'] != null && medicion['idNube_medicion'] != 0) {
+      // copiar y transformar el campo
+      final updateMap = Map<String, dynamic>.from(medicion);
+      updateMap['id'] = updateMap['idNube_medicion']; // la API espera "id"
+      updateMap.remove('idNube_medicion');
+      jsonActualizar.add(updateMap);
+    } else {
+      jsonCrear.add(medicion);
+    }
+  }
+  
+
+   // Saltamos el diálogo y vamos directo a los envíos
+  if (jsonCrear.isNotEmpty) {
+    await _enviarDatosALaNubeMEdicionHorizontalProgramado(jsonCrear);
+  }
+  if (jsonActualizar.isNotEmpty) {
+    await _actualizarDatosEnLaNubeMEdicionHorizontalProgramado(jsonActualizar);
+  }
+}
+
+Future<void> _actualizarDatosEnLaNubeMEdicionHorizontalProgramado(List<Map<String, dynamic>> jsonData) async {
+  final medicionService = ApiServiceMedicionesHorizontalProgramado();
+  bool allSuccess = true;
+  List<String> errores = [];
+
+    showDialog(
+    context: context,
+    barrierDismissible: false,
+    builder: (context) => const Center(child: CircularProgressIndicator()),
+  );
+
+  try {
+    // aquí puedes llamar a put de golpe si tu API soporta array
+    final success = await medicionService.putMedicionHorizontal(jsonData);
+    if (success) {
+      for (final item in jsonData) {
+        await _actualizarEnviomedicionHorizontalProgramado(item['id_local'] ?? item['id']); 
+        // si necesitas marcar localmente, usa el id local (el autoincrement)
+      }
+    } else {
+      allSuccess = false;
+      errores.add('Error al actualizar registros');
+    }
+  } catch (e) {
+    allSuccess = false;
+    errores.add('Error inesperado: ${e.toString()}');
+  }
+ if (allSuccess) {
+    Navigator.of(context).pop(); // ✅ se cierra solo si fue exitoso
+  } else {
+    Navigator.of(context).pop(); // ❌ opcional: si quieres cerrarlo igual
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(errores.join("\n"))),
+    );
+  }
+}
+
+
+Future<void> _enviarDatosALaNubeMEdicionHorizontalProgramado(List<Map<String, dynamic>> jsonData) async {
+  final medicionService = ApiServiceMedicionesHorizontalProgramado();
+  final exploracionService = ExploracionService();
+  bool allSuccess = true;
+  List<String> errores = [];
+  List<int> idsNubeParaMarcar = [];
+
+      showDialog(
+    context: context,
+    barrierDismissible: false,
+    builder: (context) => const Center(child: CircularProgressIndicator()),
+  );
+
+  try {
+    // Paso 1: Enviar todas las mediciones horizontales
+    for (var medicionMap in jsonData) {
+      try {
+        final medicion = MedicionHorizontal.fromJson(medicionMap);
+        bool success = await medicionService.postMedicionHorizontal(medicion.toApiJson());
+
+        if (success) {
+          await _actualizarEnviomedicionHorizontalProgramado(medicionMap['id']);
+          
+          // Si tiene idnube, lo agregamos a la lista para marcar
+          if (medicionMap['idnube'] != null) {
+            idsNubeParaMarcar.add(medicionMap['idnube']);
+          }
+        } else {
+          allSuccess = false;
+          errores.add("Error al enviar medición ID: ${medicionMap['id']}");
+        }
+      } catch (e) {
+        allSuccess = false;
+        errores.add("Error procesando medición ID: ${medicionMap['id']} - ${e.toString()}");
+      }
+    }
+
+    // Paso 2: Marcar los registros como usados en mediciones (solo si hay ids)
+    if (idsNubeParaMarcar.isNotEmpty) {
+      bool marcadoExitoso = await exploracionService.marcarComoUsadosEnMedicionesProgramadas(idsNubeParaMarcar);
+      
+      if (!marcadoExitoso) {
+        allSuccess = false;
+        errores.add("Error al marcar registros como usados en mediciones");
+      }
+    }
+
+  } catch (e) {
+    allSuccess = false;
+    errores.add("Error inesperado: ${e.toString()}");
+  }
+ if (allSuccess) {
+    Navigator.of(context).pop(); // ✅ cierra solo si todo correcto
+  } else {
+    Navigator.of(context).pop(); // ❌ opcional: si quieres cerrarlo igual
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(errores.join("\n"))),
+    );
+  }
+}
+
+
+
+  Future<int> _actualizarEnviomedicionHorizontalProgramado(int medicionId) async {
+    DatabaseHelper_Mina1 dbHelper = DatabaseHelper_Mina1();
+    return await dbHelper.actualizarEnvioMedicionesHorizontalProgramado([medicionId]);
   }
 
 

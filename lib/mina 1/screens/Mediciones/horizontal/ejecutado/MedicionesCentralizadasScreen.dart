@@ -1,6 +1,6 @@
-import 'package:app_seminco/mina%201/screens/Mediciones/horizontal/explo/horizontal_ejecutado.dart';
-import 'package:app_seminco/mina%201/screens/Mediciones/horizontal/listar_mediciones.dart';
-import 'package:app_seminco/mina%201/screens/Mediciones/horizontal/remanente/MedicionesRemanentesScreen.dart';
+import 'package:app_seminco/mina%201/screens/Mediciones/horizontal/ejecutado/explo/horizontal_ejecutado.dart';
+import 'package:app_seminco/mina%201/screens/Mediciones/horizontal/ejecutado/listar_mediciones.dart';
+import 'package:app_seminco/mina%201/screens/Mediciones/horizontal/ejecutado/remanente/MedicionesRemanentesScreen.dart';
 import 'package:flutter/material.dart';
 
 class MedicionesCentralizadasScreen extends StatefulWidget {

@@ -12,7 +12,7 @@ class ConnectivityAutoSyncMina1 {
     final sostenimientoPendientes = await dbHelper.getOperacionPendienteByTipo("SOSTENIMIENTO");
     final carguioPendientes = await dbHelper.getOperacionPendienteByTipo("CARGUÍO");
     final explosivosPendientes = await dbHelper.getExploracionesPendientes();
-    final medicionesPendientes = await dbHelper.getMedicionesHorizontalPendientes();
+    final medicionesPendientes = await dbHelper.getMedicionesHorizontalProgramadoPendientes();
     final ingresosPendientes = await dbHelper.getIngresosPendientes();
     final salidasPendientes = await dbHelper.getSalidasPendientes();
 

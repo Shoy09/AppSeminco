@@ -31,9 +31,11 @@ class ApiConfig {
       '/operacion/update-sostenimiento';
   static const String datosExploracionesEndpoint = '/NubeDatosExploraciones';
     static const String datosExploracionesmedionesEndpoint = '/NubeDatosExploraciones/Explo-medicion';
+    static const String datosExploracionesMedicionesProgramadasEndpoint = '/NubeDatosExploraciones/Explo-medicion-programados';
   static const String perforacionEndpoint = '/mediciones';
 
   static const String medicionesHorizontalEndpoint = '/medicion-tal-horizontal';
+  static const String medicionesHorizontalProgramadoEndpoint = '/medicion-tal-horizontal-programado';
   static const String medicionesHorizontalEndpointRemanente = '/medicion-tal-horizontal/remanente';
   static const String medicionesLargoEndpoint = '/medicion-tal-largo';
     static const String toneladasEndpoint = '/toneladas';

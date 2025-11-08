@@ -1,5 +1,5 @@
 import 'package:app_seminco/components/reportes/CompactReportButton%20.dart';
-import 'package:app_seminco/mina%201/screens/Mediciones/horizontal/horizontal.dart';
+import 'package:app_seminco/mina%201/screens/Mediciones/horizontal/programado/explo/horizontal.dart';
 import 'package:app_seminco/mina%201/screens/Mediciones/horizontal/select_tipo_pro_eje.dart';
 import 'package:app_seminco/mina%201/screens/Mediciones/largo/largo.dart';
 import 'package:app_seminco/mina%201/screens/Mediciones/prueba.dart';

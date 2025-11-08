@@ -2,7 +2,7 @@ import 'package:app_seminco/database/database_helper.dart';
 import 'package:app_seminco/mina%201/models/Envio%20Api/medicion_horizontal.dart';
 import 'package:app_seminco/mina%201/services/Enviar%20nube/ExploracionService_service.dart';
 import 'package:app_seminco/mina%201/services/Enviar%20nube/aceros_service.dart';
-import 'package:app_seminco/mina%201/services/Enviar%20nube/api_service_mediciones_horizontal.dart';
+import 'package:app_seminco/mina%201/services/Enviar%20nube/api_service_mediciones_horizontal_programado.dart';
 import 'package:app_seminco/mina%201/services/Enviar%20nube/carguio_service.dart';
 import 'package:app_seminco/mina%201/services/Enviar%20nube/operacion_service.dart';
 import 'package:flutter/material.dart';
@@ -533,7 +533,7 @@ class ExportFunctions {
     final List<Map<String, dynamic>> jsonActualizar = [];
 
     for (final id in idsMedicionesHorizontal) {
-      final medicion = await _dbHelper.obtenerMedicionHorizontalPorId(id);
+      final medicion = await _dbHelper.obtenerMedicionHorizontalPorIdProgramado(id);
       if (medicion == null) continue;
 
       if (medicion['idNube_medicion'] != null && medicion['idNube_medicion'] != 0) {
@@ -560,7 +560,7 @@ class ExportFunctions {
   }
 
   static Future<bool> _actualizarDatosEnLaNubeMedicionHorizontal(BuildContext context, List<Map<String, dynamic>> jsonData) async {
-    final medicionService = ApiServiceMedicionesHorizontal();
+    final medicionService = ApiServiceMedicionesHorizontalProgramado();
     bool allSuccess = true;
 
     try {
@@ -581,7 +581,7 @@ class ExportFunctions {
   }
 
   static Future<bool> _enviarDatosALaNubeMedicionHorizontal(BuildContext context, List<Map<String, dynamic>> jsonData) async {
-    final medicionService = ApiServiceMedicionesHorizontal();
+    final medicionService = ApiServiceMedicionesHorizontalProgramado();
     final exploracionService = ExploracionService();
     bool allSuccess = true;
     List<int> idsNubeParaMarcar = [];
@@ -609,7 +609,7 @@ class ExportFunctions {
       }
 
       if (idsNubeParaMarcar.isNotEmpty) {
-        bool marcadoExitoso = await exploracionService.marcarComoUsadosEnMediciones(idsNubeParaMarcar);
+        bool marcadoExitoso = await exploracionService.marcarComoUsadosEnMedicionesProgramadas(idsNubeParaMarcar);
         
         if (!marcadoExitoso) {
           allSuccess = false;
@@ -866,7 +866,7 @@ class ExportFunctions {
   }
 
   static Future<int> _actualizarEnvioMedicionHorizontal(int medicionId) async {
-    return await _dbHelper.actualizarEnvioMedicionesHorizontal([medicionId]);
+    return await _dbHelper.actualizarEnvioMedicionesHorizontalProgramado([medicionId]);
   }
 
   static Future<int> _actualizarEnvioIngresoAcero(int ingresoId) async {

@@ -24,7 +24,7 @@ class DatabaseHelper_Mina1 {
   static Database? _database;
   static String? _currentUserDni;
   static bool _isInitialized = false;
-  static const int _currentDbVersion = 12;
+  static const int _currentDbVersion = 14;
 
   DatabaseHelper_Mina1._internal() {
     // Inicialización única para evitar múltiples llamadas
@@ -450,7 +450,8 @@ await db.execute('''
     empresa TEXT,
     seccion TEXT,
     idnube TEXT,
-    medicion INTEGER DEFAULT 0
+    medicion INTEGER DEFAULT 0,
+    medicion_programado INTEGER DEFAULT 0
   )
 ''');
 
@@ -685,6 +686,30 @@ await db.execute('''
 
 await db.execute('''
   CREATE TABLE mediciones_horizontal (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    fecha TEXT NOT NULL,
+    turno TEXT,
+    empresa TEXT,
+    zona TEXT,
+    labor TEXT,
+    veta TEXT,
+    tipo_perforacion TEXT,
+    kg_explosivos REAL,
+    avance_programado REAL,
+    ancho REAL,
+    alto REAL,
+    envio INTEGER DEFAULT 0,
+    id_explosivo INTEGER,
+    idnube INTEGER,
+    idNube_medicion INTEGER,
+    no_aplica INTEGER DEFAULT 0,
+    remanente INTEGER DEFAULT 0,
+    semana TEXT
+  )
+''');
+
+await db.execute('''
+  CREATE TABLE mediciones_horizontal_Programadas (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     fecha TEXT NOT NULL,
     turno TEXT,
@@ -1021,8 +1046,46 @@ if (oldVersion < 8) {
       FOREIGN KEY(operacion_id) REFERENCES Operacion(id) ON DELETE CASCADE
     )
   ''');
-}
+}if (oldVersion < 13) {
+  // Crear nueva tabla mediciones_horizontal_Programadas
+  final existe = await _tablaExiste(db, 'mediciones_horizontal_Programadas');
 
+  if (!existe) {
+    await db.execute('''
+      CREATE TABLE mediciones_horizontal_Programadas (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        fecha TEXT NOT NULL,
+        turno TEXT,
+        empresa TEXT,
+        zona TEXT,
+        labor TEXT,
+        veta TEXT,
+        tipo_perforacion TEXT,
+        kg_explosivos REAL,
+        avance_programado REAL,
+        ancho REAL,
+        alto REAL,
+        envio INTEGER DEFAULT 0,
+        id_explosivo INTEGER,
+        idnube INTEGER,
+        idNube_medicion INTEGER,
+        no_aplica INTEGER DEFAULT 0,
+        remanente INTEGER DEFAULT 0,
+        semana TEXT
+      )
+    ''');
+    print('✅ Tabla mediciones_horizontal_Programadas creada correctamente');
+  } else {
+    print('ℹ️ La tabla mediciones_horizontal_Programadas ya existía, no se recrea.');
+  }
+}if (oldVersion < 14) {
+  if (!await _columnaExiste(db, 'nube_Datos_trabajo_exploraciones', 'medicion_programado')) {
+    await db.execute('''
+      ALTER TABLE nube_Datos_trabajo_exploraciones 
+      ADD COLUMN medicion_programado INTEGER NOT NULL DEFAULT 0
+    ''');
+  }
+}
 
 
 }
@@ -1637,6 +1700,15 @@ Future<bool> _tablaExiste(Database db, String tabla) async {
     final db = await database;
     return await db.query(
       'mediciones_horizontal',
+      where: 'envio = 0',
+      orderBy: 'id DESC',
+    );
+  }
+
+  Future<List<Map<String, dynamic>>> getMedicionesHorizontalProgramadoPendientes() async {
+    final db = await database;
+    return await db.query(
+      'mediciones_horizontal_Programadas',
       where: 'envio = 0',
       orderBy: 'id DESC',
     );
@@ -2730,6 +2802,18 @@ Future<void> actualizarMedicionEXplosivo(List<int> ids) async {
   );
 }
 
+Future<void> actualizarMedicionEXplosivoProgramado(List<int> ids) async {
+  final db = await database;
+
+  // Construir placeholders dinámicos (?, ?, ?)
+  final placeholders = List.filled(ids.length, '?').join(',');
+
+  await db.rawUpdate(
+    'UPDATE nube_Datos_trabajo_exploraciones SET medicion_programado = 1 WHERE id IN ($placeholders)',
+    ids,
+  );
+}
+
 Future<void> actualizarMedicionExplosivoACero(List<int> ids) async {
   if (ids.isEmpty) return; // ✅ Evita ejecución si la lista está vacía
 
@@ -2740,6 +2824,20 @@ Future<void> actualizarMedicionExplosivoACero(List<int> ids) async {
 
   await db.rawUpdate(
     'UPDATE nube_Datos_trabajo_exploraciones SET medicion = 0 WHERE id IN ($placeholders)',
+    ids,
+  );
+}
+
+Future<void> actualizarMedicionExplosivoACeroProgramado(List<int> ids) async {
+  if (ids.isEmpty) return; // ✅ Evita ejecución si la lista está vacía
+
+  final db = await database;
+
+  // Construir placeholders dinámicos (?, ?, ?)
+  final placeholders = List.filled(ids.length, '?').join(',');
+
+  await db.rawUpdate(
+    'UPDATE nube_Datos_trabajo_exploraciones SET medicion_programado = 0 WHERE id IN ($placeholders)',
     ids,
   );
 }
@@ -2755,6 +2853,15 @@ Future<int> insertarMedicionHorizontal(Map<String, dynamic> datos) async {
   );
 }
 
+Future<int> insertarMedicionHorizontalprogramado(Map<String, dynamic> datos) async {
+  final db = await database;
+  return await db.insert(
+    'mediciones_horizontal_Programadas',
+    datos,
+    conflictAlgorithm: ConflictAlgorithm.replace,
+  );
+}
+
 
 Future<List<Map<String, dynamic>>> obtenerTodasMedicionesHorizontal() async {
   final db = await database;
@@ -2765,10 +2872,31 @@ Future<List<Map<String, dynamic>>> obtenerTodasMedicionesHorizontal() async {
   return result;
 }
 
+
+Future<List<Map<String, dynamic>>> obtenerTodasMedicionesHorizontalProgramado() async {
+  final db = await database;
+  final List<Map<String, dynamic>> result = await db.query(
+    'mediciones_horizontal_Programadas',
+    orderBy: 'fecha DESC', // Ordenar por fecha descendente
+  );
+  return result;
+}
+
 Future<List<Map<String, dynamic>>> obtenerMedicionesHorizontalConRemanente() async {
   final db = await database;
   final result = await db.query(
     'mediciones_horizontal',
+    where: 'remanente = ?',
+    whereArgs: [1],
+    orderBy: 'fecha DESC', // opcional, las más recientes primero
+  );
+  return result;
+}
+
+Future<List<Map<String, dynamic>>> obtenerMedicionesHorizontalConRemanenteProgramado() async {
+  final db = await database;
+  final result = await db.query(
+    'mediciones_horizontal_Programadas',
     where: 'remanente = ?',
     whereArgs: [1],
     orderBy: 'fecha DESC', // opcional, las más recientes primero
@@ -2804,6 +2932,22 @@ Future<Map<String, dynamic>?> obtenerMedicionHorizontalPorId(int id) async {
   return mediciones.first;
 }
 
+Future<Map<String, dynamic>?> obtenerMedicionHorizontalPorIdProgramado(int id) async {
+  final Database db = await database;
+
+  // Obtener el registro de mediciones_horizontal con el ID especificado
+  List<Map<String, dynamic>> mediciones = await db.query(
+    'mediciones_horizontal_Programadas',
+    where: 'id = ?',
+    whereArgs: [id],
+  );
+
+  if (mediciones.isEmpty) return null;
+
+  // Retornar el primer registro como Map<String, dynamic>
+  return mediciones.first;
+}
+
 
 Future<List<Map<String, dynamic>>> obtenerTodasMedicionesHorizontalPendientesEnvio() async {
   final db = await database;
@@ -2829,12 +2973,37 @@ Future<int> eliminarMultiplesMedicionesHorizontal(List<int> ids) async {
   );
 }
 
+Future<int> eliminarMultiplesMedicionesHorizontalProgramado(List<int> ids) async {
+  if (ids.isEmpty) return 0;
+  
+  final db = await database;
+  final placeholders = List.filled(ids.length, '?').join(',');
+  
+  return await db.delete(
+    'mediciones_horizontal_Programadas',
+    where: 'id IN ($placeholders)',
+    whereArgs: ids,
+  );
+}
+
 Future<int> actualizarEnvioMedicionesHorizontal(List<int> ids) async {
   final db = await database;
   final idPlaceholders = List.filled(ids.length, '?').join(', ');
 
   return await db.update(
     'mediciones_horizontal',
+    {'envio': 1},
+    where: 'id IN ($idPlaceholders)',
+    whereArgs: ids,
+  );
+}
+
+Future<int> actualizarEnvioMedicionesHorizontalProgramado(List<int> ids) async {
+  final db = await database;
+  final idPlaceholders = List.filled(ids.length, '?').join(', ');
+
+  return await db.update(
+    'mediciones_horizontal_Programadas',
     {'envio': 1},
     where: 'id IN ($idPlaceholders)',
     whereArgs: ids,
@@ -3005,6 +3174,47 @@ Future<List<Map<String, dynamic>>> obtenerExploracionesCompletasPorZona(String z
     final List<Map<String, dynamic>> exploraciones = await db.query(
       'nube_Datos_trabajo_exploraciones',
       where: 'medicion = ? AND zona = ?',
+      whereArgs: [0, zona],
+      orderBy: 'fecha DESC, turno DESC',
+    );
+
+    if (exploraciones.isEmpty) return [];
+
+    List<Map<String, dynamic>> resultado = [];
+
+    for (var exploracion in exploraciones) {
+      // Crear un nuevo mapa mutable para la exploración
+      Map<String, dynamic> exploracionCompleta = Map<String, dynamic>.from(exploracion);
+      int exploracionId = exploracion['id'];
+      String idnube = exploracion['idnube']?.toString() ?? '';
+
+      // Obtener despachos relacionados
+      exploracionCompleta['despachos'] = await _obtenerDespachosPorExploracion(exploracionId);
+      
+      // Obtener devoluciones relacionadas
+      exploracionCompleta['devoluciones'] = await _obtenerDevolucionesPorExploracion(exploracionId);
+      
+      // Asegurar que idnube está incluido
+      exploracionCompleta['idnube'] = idnube;
+
+      resultado.add(exploracionCompleta);
+    }
+
+    return resultado;
+  } catch (e) {
+    print('Error al obtener exploraciones completas por zona: $e');
+    return [];
+  }
+}
+
+Future<List<Map<String, dynamic>>> obtenerExploracionesCompletasPorZonaProgramado(String zona) async {
+  try {
+    final Database db = await database;
+    
+    // Obtener solo las exploraciones con medicion = 0 y la zona especificada
+    final List<Map<String, dynamic>> exploraciones = await db.query(
+      'nube_Datos_trabajo_exploraciones',
+      where: 'medicion_programado = ? AND zona = ?',
       whereArgs: [0, zona],
       orderBy: 'fecha DESC, turno DESC',
     );

@@ -546,7 +546,7 @@ void _deleteRecord(int recordId) async {
 Widget build(BuildContext context) {
   return Scaffold(
     appBar: AppBar(
-      title: Text("Tabla de taladro horizontal"),
+      title: Text("Tabla de taladro sostenimiento"),
       backgroundColor: Color(0xFF21899C)),
     body: Padding(
       padding: const EdgeInsets.all(16.0),

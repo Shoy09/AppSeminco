@@ -813,12 +813,31 @@ int obtenerNumeroSemana(DateTime fecha) {
 }
 
 Widget _buildTurnoField() {
-  return TextFormField(
-    controller: _turnoController,
-    enabled: !_registroCerrado,
-    decoration: const InputDecoration(
+  final List<String> turnos = ['Día', 'Noche'];
+  final isValueValid = turnos.contains(_turnoController.text);
+
+  return DropdownButtonFormField<String>(
+    value: isValueValid ? _turnoController.text : null,
+    decoration: InputDecoration(
       labelText: 'Turno',
+      filled: _registroCerrado,
+      fillColor: _registroCerrado ? Colors.grey[200] : null,
     ),
+    items: turnos.map((turno) {
+      return DropdownMenuItem<String>(
+        value: turno,
+        child: Text(turno),
+      );
+    }).toList(),
+    onChanged: _registroCerrado
+        ? null
+        : (value) {
+            setState(() {
+              _turnoController.text = value!;
+            });
+          },
+    validator: (value) =>
+        value == null || value.isEmpty ? 'Seleccione un turno' : null,
   );
 }
 

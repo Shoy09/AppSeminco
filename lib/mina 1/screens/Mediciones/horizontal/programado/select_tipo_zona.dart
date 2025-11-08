@@ -1,4 +1,4 @@
-import 'package:app_seminco/mina%201/screens/Mediciones/horizontal/horizontal.dart';
+import 'package:app_seminco/mina%201/screens/Mediciones/horizontal/programado/MedicionesCentralizadasScreen.dart';
 import 'package:flutter/material.dart';
 import 'package:app_seminco/components/reportes/CompactReportButton%20.dart';
 
@@ -9,7 +9,7 @@ class Selecc_Tipo_explo_zona extends StatelessWidget {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => RegistroExplosivoPagehorizontal(zona: zona),
+        builder: (context) => MedicionesCentralizadasScreen(zona: zona),
       ),
     );
   }

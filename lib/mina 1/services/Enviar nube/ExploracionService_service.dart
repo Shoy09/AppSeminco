@@ -41,4 +41,26 @@ class ExploracionService {
       return false;
     }
   }
+
+  Future<bool> marcarComoUsadosEnMedicionesProgramadas(List<int> ids) async {
+  try {
+    final response = await _apiService.put(
+      ApiConfig.datosExploracionesMedicionesProgramadasEndpoint, // nuevo endpoint
+      {'ids': ids}, // Enviamos array de IDs
+    );
+    
+    if (response.statusCode == 200) {
+      print('✅ ${ids.length} registros marcados como usados en mediciones programadas');
+      return true;
+    } else {
+      print('❌ Error al marcar mediciones programadas. Código: ${response.statusCode}');
+      print('Respuesta: ${response.body}');
+      return false;
+    }
+  } catch (e) {
+    print('❌ Error en marcarComoUsadosEnMedicionesProgramadas: $e');
+    return false;
+  }
+}
+
 }

@@ -1,23 +1,23 @@
+import 'package:app_seminco/database/database_helper.dart';
 import 'package:app_seminco/mina%201/models/Envio%20Api/medicion_horizontal.dart';
 import 'package:app_seminco/mina%201/services/Enviar%20nube/ExploracionService_service.dart';
-import 'package:app_seminco/mina%201/services/Enviar%20nube/api_service_mediciones_horizontal.dart';
+import 'package:app_seminco/mina%201/services/Enviar%20nube/api_service_mediciones_horizontal_programado.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'dart:async';
 import 'dart:convert';
 
-import '../../../../../database/database_helper.dart';
 
-class ListaMedicionesScreen extends StatefulWidget {
+class ListaMedicionesScreenProgramado extends StatefulWidget {
   final String tipoPerforacion;
 
-  ListaMedicionesScreen({required this.tipoPerforacion});
+  ListaMedicionesScreenProgramado({required this.tipoPerforacion});
 
   @override
   _DetalleSeccionScreenState createState() => _DetalleSeccionScreenState();
 }
 
-class _DetalleSeccionScreenState extends State<ListaMedicionesScreen> {
+class _DetalleSeccionScreenState extends State<ListaMedicionesScreenProgramado> {
   List<Map<String, dynamic>> medicionesData = [];
   Set<int> selectedItems = {};
   Timer? selectionTimer;
@@ -41,7 +41,7 @@ class _DetalleSeccionScreenState extends State<ListaMedicionesScreen> {
     
     try {
       DatabaseHelper_Mina1 dbHelper = DatabaseHelper_Mina1();
-      List<Map<String, dynamic>> data = await dbHelper.obtenerTodasMedicionesHorizontal();
+      List<Map<String, dynamic>> data = await dbHelper.obtenerTodasMedicionesHorizontalProgramado();
 
       setState(() {
         medicionesData = data;
@@ -98,7 +98,7 @@ Future<void> _exportSelectedItems() async {
   final List<Map<String, dynamic>> jsonActualizar = [];
 
   for (final id in selectedItems) {
-    final medicion = await dbHelper.obtenerMedicionHorizontalPorId(id);
+    final medicion = await dbHelper.obtenerMedicionHorizontalPorIdProgramado(id);
     if (medicion == null) continue;
 
     // si trae idNube_medicion (no null y >0) lo mandamos a actualizar
@@ -152,7 +152,7 @@ Future<void> _showConfirmationDialog(
 }
 
 Future<void> _actualizarDatosEnLaNube(List<Map<String, dynamic>> jsonData) async {
-  final medicionService = ApiServiceMedicionesHorizontal();
+  final medicionService = ApiServiceMedicionesHorizontalProgramado();
   bool allSuccess = true;
   List<String> errores = [];
 
@@ -185,7 +185,7 @@ Future<void> _actualizarDatosEnLaNube(List<Map<String, dynamic>> jsonData) async
 
 
 Future<void> _enviarDatosALaNube(List<Map<String, dynamic>> jsonData) async {
-  final medicionService = ApiServiceMedicionesHorizontal();
+  final medicionService = ApiServiceMedicionesHorizontalProgramado();
   final exploracionService = ExploracionService();
   bool allSuccess = true;
   List<String> errores = [];
@@ -223,7 +223,7 @@ Future<void> _enviarDatosALaNube(List<Map<String, dynamic>> jsonData) async {
 
     // Paso 2: Marcar los registros como usados en mediciones (solo si hay ids)
     if (idsNubeParaMarcar.isNotEmpty) {
-      bool marcadoExitoso = await exploracionService.marcarComoUsadosEnMediciones(idsNubeParaMarcar);
+      bool marcadoExitoso = await exploracionService.marcarComoUsadosEnMedicionesProgramadas(idsNubeParaMarcar);
       
       if (!marcadoExitoso) {
         allSuccess = false;
@@ -244,7 +244,7 @@ Future<void> _enviarDatosALaNube(List<Map<String, dynamic>> jsonData) async {
 
   Future<int> _actualizarEnvio(int medicionId) async {
     DatabaseHelper_Mina1 dbHelper = DatabaseHelper_Mina1();
-    return await dbHelper.actualizarEnvioMedicionesHorizontal([medicionId]);
+    return await dbHelper.actualizarEnvioMedicionesHorizontalProgramado([medicionId]);
   }
 
 Future<void> _showResultDialog(bool success, List<String> errores) async {
@@ -329,7 +329,7 @@ Future<void> _showResultDialog(bool success, List<String> errores) async {
 
     try {
       DatabaseHelper_Mina1 dbHelper = DatabaseHelper_Mina1();
-      int deletedCount = await dbHelper.eliminarMultiplesMedicionesHorizontal(selectedItems.toList());
+      int deletedCount = await dbHelper.eliminarMultiplesMedicionesHorizontalProgramado(selectedItems.toList());
 
       Navigator.of(context).pop();
 

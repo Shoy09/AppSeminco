@@ -544,7 +544,7 @@ class _FormularioScreenState extends State<FormularioScreen> {
 Widget build(BuildContext context) {
   return Scaffold(
     appBar: AppBar(
-      title: Text("Tabla de taladro horizontal"),
+      title: Text("Tabla de taladro largo"),
       backgroundColor: Color(0xFF21899C)),
     body: Padding(
       padding: const EdgeInsets.all(16.0),
